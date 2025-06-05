@@ -50,9 +50,9 @@
                 android:value=".SearchActivity" />
         </activity>
         
-        <!-- Dashboard Activity -->
+        <!-- Provider Dashboard Activity -->
         <activity
-            android:name=".dashboard.DashboardActivity"
+            android:name=".ProviderDashboardActivity"
             android:exported="false"
             android:theme="@style/Theme.HealthCareApp" />
 
