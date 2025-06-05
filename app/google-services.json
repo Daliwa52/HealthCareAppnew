@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "330102887447",
+    "project_id": "healthcareapp-b2b6a",
+    "storage_bucket": "healthcareapp-b2b6a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:330102887447:android:5a48a4e93b5786e0393852",
+        "android_client_info": {
+          "package_name": "com.nipa.healthcareApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCY7LRtmymPJ8jFwZMtnNTyZ7LROZWD5bQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:330102887447:android:613835df1baa0c4d393852",
+        "android_client_info": {
+          "package_name": "com.nipa.healthcareapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCY7LRtmymPJ8jFwZMtnNTyZ7LROZWD5bQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

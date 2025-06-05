@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.nipa.healthcareapp.fragments.HomeFragment"
+        android:label="Home" />
+
+    <fragment
+        android:id="@+id/notificationsFragment"
+        android:name="com.nipa.healthcareapp.NotificationsFragment"
+        android:label="Notifications" />
+
+    <fragment
+        android:id="@+id/chatsFragment"
+        android:name="com.nipa.healthcareapp.ChatsFragment"
+        android:label="Chats" />
+
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.nipa.healthcareapp.HistoryFragment"
+        android:label="History" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.nipa.healthcareapp.SettingsFragment"
+        android:label="Settings" />
+
+    <fragment
+        android:id="@+id/providersFragment"
+        android:name="com.nipa.healthcareapp.ProvidersFragment"
+        android:label="Providers" />
+
+    <fragment
+        android:id="@+id/uploadFragment"
+        android:name="com.nipa.healthcareapp.fragments.UploadFragment"
+        android:label="Upload" />
+
+</navigation>

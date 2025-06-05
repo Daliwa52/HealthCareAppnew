@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/provider_nav_graph"
+    app:startDestination="@id/nav_notifications">
+
+    <fragment
+        android:id="@+id/nav_notifications"
+        android:name="com.nipa.healthcareapp.NotificationsFragment"
+        android:label="Notifications" />
+
+    <fragment
+        android:id="@+id/nav_chats"
+        android:name="com.nipa.healthcareapp.ChatsFragment"
+        android:label="Chats" />
+
+    <fragment
+        android:id="@+id/nav_client_history"
+        android:name="com.nipa.healthcareapp.ClientHistoryFragment"
+        android:label="Client History" />
+
+    <fragment
+        android:id="@+id/nav_settings"
+        android:name="com.nipa.healthcareapp.SettingsFragment"
+        android:label="Settings" />
+
+</navigation>

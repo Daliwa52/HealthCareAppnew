@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Healthcare Theme Colors -->
+    <color name="primary">#0078B6</color>  <!-- Medical Blue -->
+    <color name="primary_dark">#005E8F</color>
+    <color name="primary_light">#64B0E3</color>
+    
+    <!-- Secondary Colors -->
+    <color name="secondary">#26A69A</color>  <!-- Teal Green -->
+    <color name="secondary_dark">#00867D</color>
+    <color name="secondary_light">#64D8CB</color>
+    
+    <!-- Accent Colors -->
+    <color name="accent">#FF6D00</color>  <!-- Vibrant Orange -->
+    <color name="accent_dark">#D65600</color>
+    <color name="accent_light">#FF9E40</color>
+    
+    <!-- Background Colors -->
+    <color name="background">#FAFAFA</color>  <!-- Very Light Gray -->
+    <color name="background_light">#F0F8FF</color>  <!-- Light Blue-tinted White -->
+    <color name="surface">#FFFFFF</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    
+    <!-- Status Colors -->
+    <color name="success">#43A047</color>  <!-- Green -->
+    <color name="error">#E53935</color>    <!-- Red -->
+    <color name="warning">#FFB300</color>  <!-- Amber -->
+    <color name="info">#039BE5</color>     <!-- Light Blue -->
+    
+    <!-- UI Element Colors -->
+    <color name="divider">#E0E0E0</color>  <!-- Light Gray -->
+    
+    <!-- System Colors -->
+    <color name="transparent">#00000000</color>
+    
+    <!-- Required Material Design Compatibility Colors -->
+    <color name="purple_500">#0078B6</color>  <!-- Same as primary -->
+    <color name="purple_700">#005E8F</color>  <!-- Same as primary_dark -->
+    <color name="teal_200">#64D8CB</color>    <!-- Same as secondary_light -->
+    <color name="teal_700">#00867D</color>    <!-- Same as secondary_dark -->
+    
+    <!-- Default Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="grey">#757575</color>
+    <color name="light_grey">#E0E0E0</color>
+    <color name="dark_grey">#616161</color>
+    
+    <!-- Additional Healthcare-specific Colors -->
+    <color name="notification_badge">#F44336</color>  <!-- Red for notifications -->
+    <color name="card_bg">#F5F5F5</color>            <!-- Off-white for cards -->
+    <color name="status_available">#4CAF50</color>    <!-- Green for available -->
+    <color name="status_busy">#FF5722</color>         <!-- Deep Orange for busy -->
+    <color name="link_color">#1E88E5</color>          <!-- Blue for links -->
+</resources>
