@@ -55,6 +55,12 @@
             android:name=".dashboard.DashboardActivity"
             android:exported="false"
             android:theme="@style/Theme.HealthCareApp" />
+
+        <!-- Patient Dashboard Activity -->
+        <activity
+            android:name=".PatientDashboardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
             
         <!-- Search Activity -->
         <activity
