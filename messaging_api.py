@@ -1,144 +1,116 @@
 from flask import Flask, request, jsonify
+import sqlite3 # For handling database specific errors
+import os # For environment variable access
+from db_utils_messaging import (
+    get_db_connection,
+    initialize_schema,
+    find_or_create_conversation,
+    create_message,
+    get_conversations_by_user_id,
+    get_messages_by_conversation_id,
+    get_conversation_by_id # For authorization check
+)
 
 app = Flask(__name__)
+# Define DB name, configurable via environment variable
+DB_NAME = os.getenv('MESSAGING_DB_NAME', 'messaging_app.db')
 
-# In a real application, you would configure your database connection here
-# For example, using Flask-SQLAlchemy or another ORM/DB connector
-# from flask_sqlalchemy import SQLAlchemy
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'your_database_uri'
-# db = SQLAlchemy(app)
-
-# Placeholder for user model or function to check user existence
-def user_exists(user_id):
-    # In a real app, query the database to check if user_id exists
-    # For this placeholder, we'll assume users with ID > 0 exist
-    return isinstance(user_id, int) and user_id > 0
 
 @app.route('/api/messages', methods=['POST'])
 def send_message():
     """
-    API endpoint to send a new message.
-    Expects a JSON payload with sender_id, receiver_id, and content.
+    Send a new message from one user to another.
+
+    This endpoint expects a JSON payload specifying the sender, receiver, and
+    the message content. It will find or create a conversation between the
+    two users and then add the new message to that conversation.
+
+    Request Body JSON:
+    {
+        "sender_id": int,    // ID of the user sending the message
+        "receiver_id": int,  // ID of the user receiving the message
+        "content": str       // The text content of the message
+    }
+
+    Responses:
+    - 201 Created: Message sent successfully.
+      JSON: {
+          "status": "success",
+          "message_id": int,
+          "conversation_id": int,
+          "sender_id": int,
+          "content": str
+      }
+    - 400 Bad Request: Missing required fields, invalid data types,
+                       sender and receiver are the same, or other validation errors.
+      JSON: { "status": "error", "message": "Error description" }
+    - 500 Internal Server Error: Database error or other unexpected server issues.
+      JSON: { "status": "error", "message": "Error description" }
     """
+    data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "Invalid JSON payload"}), 400
+
+    sender_id = data.get('sender_id')
+    receiver_id = data.get('receiver_id')
+    content = data.get('content')
+
+    # Basic validation
+    if not all([sender_id, receiver_id, content]):
+        missing_fields = []
+        if not sender_id: missing_fields.append("sender_id")
+        if not receiver_id: missing_fields.append("receiver_id")
+        if not content: missing_fields.append("content")
+        return jsonify({
+            "status": "error",
+            "message": f"Missing required fields: {', '.join(missing_fields)}"
+        }), 400
+
+    if not isinstance(sender_id, int) or not isinstance(receiver_id, int):
+        return jsonify({"status": "error", "message": "sender_id and receiver_id must be integers"}), 400
+
+    if not isinstance(content, str) or not content.strip():
+        return jsonify({"status": "error", "message": "Content must be a non-empty string"}), 400
+
+    conn = None
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"status": "error", "message": "Invalid JSON payload"}), 400
+        conn = get_db_connection(DB_NAME)
+        # Ensure users exist (FK constraint will catch this if they don't, but good to check)
+        # For now, we rely on FK constraints or assume users are pre-validated/exist.
 
-        sender_id = data.get('sender_id')
-        receiver_id = data.get('receiver_id')
-        content = data.get('content')
+        conversation_id = find_or_create_conversation(conn, sender_id, receiver_id)
+        new_message_id = create_message(conn, conversation_id, sender_id, content)
+        # Note: create_message in db_utils now handles updating conversation_timestamp and committing.
 
-        # Basic validation
-        if not all([sender_id, receiver_id, content]):
-            missing_fields = []
-            if not sender_id: missing_fields.append("sender_id")
-            if not receiver_id: missing_fields.append("receiver_id")
-            if not content: missing_fields.append("content")
-            return jsonify({
-                "status": "error",
-                "message": f"Missing required fields: {', '.join(missing_fields)}"
-            }), 400
-
-        if not isinstance(sender_id, int) or not isinstance(receiver_id, int):
-            return jsonify({"status": "error", "message": "sender_id and receiver_id must be integers"}), 400
-
-        if sender_id == receiver_id:
-            return jsonify({"status": "error", "message": "Sender and receiver cannot be the same user"}), 400
-
-        # Placeholder: Validate user existence (optional, depends on requirements)
-        # if not user_exists(sender_id) or not user_exists(receiver_id):
-        #     return jsonify({"status": "error", "message": "Sender or receiver does not exist"}), 404
-
-        # --- Placeholder for Database Logic ---
-
-        # 1. Find or create a conversation between sender_id and receiver_id
-        #    - Query the 'conversations' table.
-        #    - A conversation is typically unique for a pair of users, regardless of who is participant1 or participant2.
-        #      So, you might search for (p1=sender_id AND p2=receiver_id) OR (p1=receiver_id AND p2=sender_id).
-        #    - If no conversation exists, create a new one.
-        #    - This would involve database interaction.
-        conversation_id = None  # Replace with actual conversation ID from DB
-        print(f"Placeholder: Finding/creating conversation for users {sender_id} and {receiver_id}")
-        # Example:
-        # conversation = find_or_create_conversation(sender_id, receiver_id)
-        # conversation_id = conversation.id
-
-        if conversation_id is None: # Simulating a step that should yield a conversation_id
-            # This part is just for placeholder demonstration. In a real app,
-            # find_or_create_conversation would return an ID or raise an error.
-            print(f"Placeholder: Conversation created/found. Assigning a dummy ID 1 for now.")
-            conversation_id = 1 # Dummy ID for now
-
-
-        # 2. Save the new message to the database
-        #    - Insert a new record into the 'messages' table.
-        #    - Fields: conversation_id, sender_id, content, (timestamp and is_read will have defaults)
-        #    - This would involve database interaction and return the new message's ID.
-        new_message_id = None # Replace with actual new message ID from DB
-        print(f"Placeholder: Saving message from {sender_id} to conversation {conversation_id} with content: '{content}'")
-        # Example:
-        # new_message = create_message(conversation_id=conversation_id, sender_id=sender_id, content=content)
-        # new_message_id = new_message.id
-
-        if new_message_id is None: # Simulating a step that should yield a message_id
-            print(f"Placeholder: Message saved. Assigning a dummy ID 101 for now.")
-            new_message_id = 101 # Dummy ID for now
-
-        # --- Placeholder for Real-Time Notification Logic (e.g., WebSockets, SSE) ---
-        # After successfully saving the message, you would typically notify the recipient in real-time.
-        #
-        # 1. Identify Recipient's Connection:
-        #    - The `receiver_id` is known from the request payload.
-        #    - Need to look up if the `receiver_id` has an active WebSocket session or SSE connection.
-        #    - This might involve querying a data store (e.g., Redis, a dictionary in memory for simple cases)
-        #      that maps user IDs to their WebSocket session IDs (e.g., `sid` in Flask-SocketIO) or other connection identifiers.
-        #    - Example: `recipient_session_id = get_websocket_session_id_for_user(receiver_id)`
-        print(f"Placeholder: Identifying active connection for recipient_id {receiver_id} for real-time notification.")
-
-        # 2. Send Notification:
-        #    - If an active connection is found, send a notification to the recipient.
-        #    - The notification payload could be the full new message data, or just an event
-        #      (e.g., "new_message_in_conversation_X") prompting the client to fetch new messages.
-        #    - This would typically use a WebSocket library (e.g., Flask-SocketIO's `emit` function)
-        #      or an SSE event stream.
-        #    - Example (Flask-SocketIO):
-        #      `if recipient_session_id:`
-        #      `    socketio.emit('new_message',`
-        #      `                  {'message_id': new_message_id, 'conversation_id': conversation_id, 'sender_id': sender_id, 'content': content, 'timestamp': '...'},`
-        #      `                  room=recipient_session_id)`
-        #      `else:`
-        #      `    # User is not currently connected via WebSocket, might rely on push notifications or polling.`
-        print(f"Placeholder: Sending real-time notification to recipient_id {receiver_id} if connected.")
+        # --- Placeholder for Real-Time Notification Logic ---
+        # This part remains conceptual for now.
+        print(f"Conceptual: Identifying active connection for recipient_id {receiver_id} for real-time notification.")
+        print(f"Conceptual: Sending real-time notification to recipient_id {receiver_id} if connected.")
         # --- End of Placeholder for Real-Time Notification Logic ---
-
-        # 3. Update the 'conversations.updated_at' timestamp
-        #    - Update the 'updated_at' field of the conversation record (identified by conversation_id).
-        #    - This could be handled by a database trigger (as noted in messaging_schema.sql)
-        #      or explicitly here.
-        print(f"Placeholder: Updating 'updated_at' for conversation {conversation_id}")
-        # Example:
-        # update_conversation_timestamp(conversation_id)
-
-        # --- End of Placeholder for Database Logic ---
 
         return jsonify({
             "status": "success",
             "message_id": new_message_id,
             "conversation_id": conversation_id,
-            "sender_id": sender_id,
-            "content": content
-        }), 201 # 201 Created
+            "sender_id": sender_id, # Echo back for clarity
+            "content": content      # Echo back for clarity
+        }), 201
 
+    except ValueError as ve: # Catch custom ValueErrors from db_utils
+        return jsonify({"status": "error", "message": str(ve)}), 400
+    except sqlite3.IntegrityError as ie: # E.g., Foreign key constraint failed (user_id does not exist)
+        # This error message might expose too much, refine in production.
+        print(f"Database IntegrityError: {ie}")
+        return jsonify({"status": "error", "message": "Invalid sender_id or receiver_id (user does not exist) or database integrity issue."}), 400
+    except sqlite3.Error as e:
+        print(f"Database error in send_message: {e}")
+        return jsonify({"status": "error", "message": "A database error occurred."}), 500
     except Exception as e:
-        # Log the exception in a real application
-        print(f"Error processing request: {e}") # For debugging
-        return jsonify({"status": "error", "message": "An unexpected error occurred"}), 500
-
-if __name__ == '__main__':
-    # Note: This is for development only.
-    # In a production environment, use a WSGI server like Gunicorn or uWSGI.
-    app.run(debug=True, port=5000)
+        print(f"Unexpected error in send_message: {e}")
+        return jsonify({"status": "error", "message": "An unexpected error occurred."}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/api/conversations', methods=['GET'])
@@ -147,53 +119,38 @@ def get_conversations():
     API endpoint to get all conversations for a user.
     Expects a 'user_id' query parameter to identify the user.
     """
-    user_id = request.args.get('user_id', type=int)
+    user_id_str = request.args.get('user_id')
+    if not user_id_str:
+        return jsonify({"status": "error", "message": "user_id query parameter is required"}), 400
 
-    if not user_id:
-        return jsonify({"status": "error", "message": "user_id query parameter is required and must be an integer"}), 400
+    try:
+        user_id = int(user_id_str)
+    except ValueError:
+        return jsonify({"status": "error", "message": "user_id must be an integer"}), 400
 
-    # Placeholder: Validate user existence (optional)
-    # if not user_exists(user_id):
-    #     return jsonify({"status": "error", "message": "User does not exist"}), 404
+    conn = None
+    try:
+        conn = get_db_connection(DB_NAME)
+        # The db_utils function `get_conversations_by_user_id` will return an empty list
+        # if the user has no conversations or if the user_id does not exist,
+        # which is acceptable for this endpoint (shows no conversations).
+        # A specific check for user existence could be added if a 404 is preferred for unknown users.
 
-    # --- Placeholder for Database Logic ---
-    # 1. Query the 'conversations' table for conversations where participant1_id = user_id OR participant2_id = user_id.
-    #    - This would involve database interaction.
-    #    - For each conversation, you might also want to fetch details of the other participant (username, profile picture).
-    #    - Optionally, retrieve the last message for each conversation to display a snippet. This might involve
-    #      a more complex query (e.g., using a subquery or a join with the 'messages' table, grouped by conversation_id,
-    #      and ordered by timestamp descending).
-    print(f"Placeholder: Fetching conversations for user_id {user_id}")
-    # Example structure for conversations list:
-    conversations_list = [
-        {
-            "conversation_id": 1,
-            "participant1_id": user_id,
-            "participant2_id": 2, # Other user
-            "other_participant_username": "UserTwo", # Fetched from users table
-            "last_message_snippet": "Hello there!",
-            "last_message_timestamp": "2023-10-26T10:00:00Z",
-            "updated_at": "2023-10-26T10:00:00Z"
-        },
-        {
-            "conversation_id": 3,
-            "participant1_id": 5, # Other user
-            "participant2_id": user_id,
-            "other_participant_username": "UserFive", # Fetched from users table
-            "last_message_snippet": "See you soon.",
-            "last_message_timestamp": "2023-10-25T15:30:00Z",
-            "updated_at": "2023-10-25T15:30:00Z"
-        }
-    ]
-    # In a real implementation, if no conversations are found, this list would be empty.
-    # --- End of Placeholder for Database Logic ---
+        conversations_list = get_conversations_by_user_id(conn, user_id)
 
-    if not conversations_list: # Example: if DB query returned no results
-        # Depending on preference, either return an empty list or a 404
-        # For now, returning an empty list for "no conversations found" is common.
-        return jsonify({"status": "success", "conversations": []}), 200
+        return jsonify({"status": "success", "user_id": user_id, "conversations": conversations_list}), 200
 
-    return jsonify({"status": "success", "conversations": conversations_list}), 200
+    except sqlite3.Error as e:
+        # Log the error for server-side diagnostics
+        print(f"Database error in get_conversations for user_id {user_id}: {e}")
+        return jsonify({"status": "error", "message": "A database error occurred while retrieving conversations."}), 500
+    except Exception as e:
+        # Log the error for server-side diagnostics
+        print(f"Unexpected error in get_conversations for user_id {user_id}: {e}")
+        return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/api/conversations/<int:conversation_id>/messages', methods=['GET'])
@@ -201,64 +158,76 @@ def get_messages_for_conversation(conversation_id):
     """
     API endpoint to get all messages for a specific conversation.
     Accepts 'conversation_id' as a path parameter.
-    Optionally, could also check if the requesting user is part of this conversation.
+    Requires 'user_id' query parameter for authorization.
     """
-    # For now, we'll assume a user_id is also passed to check if they are part of the conversation
-    # In a real app, this would come from session/token.
-    requesting_user_id = request.args.get('user_id', type=int)
-    if not requesting_user_id:
+    requesting_user_id_str = request.args.get('user_id')
+    if not requesting_user_id_str:
         return jsonify({"status": "error", "message": "user_id query parameter is required for authorization"}), 400
 
+    try:
+        requesting_user_id = int(requesting_user_id_str)
+    except ValueError:
+        return jsonify({"status": "error", "message": "user_id query parameter for authorization must be an integer"}), 400
 
-    # --- Placeholder for Database Logic ---
-    # 1. Verify conversation existence:
-    #    - Query 'conversations' table for the given conversation_id.
-    #    - If not found, return a 404 error.
-    print(f"Placeholder: Verifying existence of conversation_id {conversation_id}")
-    # conversation_exists = check_conversation_exists(conversation_id)
-    # if not conversation_exists:
-    #    return jsonify({"status": "error", "message": "Conversation not found"}), 404
+    conn = None
+    try:
+        conn = get_db_connection(DB_NAME)
 
-    # 2. Verify user is part of the conversation (Authorization):
-    #    - Check if 'requesting_user_id' is either 'participant1_id' or 'participant2_id' in the conversation.
-    #    - If not, return a 403 Forbidden error.
-    print(f"Placeholder: Verifying user {requesting_user_id} is part of conversation {conversation_id}")
-    # is_participant = check_user_in_conversation(requesting_user_id, conversation_id)
-    # if not is_participant:
-    #    return jsonify({"status": "error", "message": "User not authorized for this conversation"}), 403
+        # Authorization Step 1: Verify conversation exists
+        conversation = get_conversation_by_id(conn, conversation_id)
+        if not conversation:
+            return jsonify({"status": "error", "message": "Conversation not found"}), 404
 
-    # 3. Query 'messages' table for all messages where 'conversation_id' matches.
-    #    - Order messages by 'timestamp' (e.g., ascending for chronological order).
-    #    - This would involve database interaction.
-    print(f"Placeholder: Fetching messages for conversation_id {conversation_id}, ordered by timestamp.")
-    # Example structure for messages list:
-    messages_list = [
-        {
-            "message_id": 101,
-            "conversation_id": conversation_id,
-            "sender_id": 1, # Example sender
-            "content": "Hello!",
-            "timestamp": "2023-10-26T09:59:00Z",
-            "is_read": True
-        },
-        {
-            "message_id": 102,
-            "conversation_id": conversation_id,
-            "sender_id": 2, # Example sender
-            "content": "Hi there!",
-            "timestamp": "2023-10-26T10:00:00Z",
-            "is_read": True
-        }
-    ]
-    # If the conversation exists but has no messages, this list would be empty.
-    # --- End of Placeholder for Database Logic ---
+        # Authorization Step 2: Check if the requesting_user_id is part of this conversation
+        if not (conversation['participant1_id'] == requesting_user_id or \
+                conversation['participant2_id'] == requesting_user_id):
+            # Log this attempt for security auditing if necessary
+            print(f"Authorization failed: User {requesting_user_id} attempted to access conversation {conversation_id}.")
+            return jsonify({"status": "error", "message": "User not authorized for this conversation"}), 403
 
-    # Simulating conversation not found or user not authorized for demonstration
-    # based on some dummy logic. In real app, this would be based on DB query results.
-    if conversation_id == 9999: # Simulate conversation not found
-         return jsonify({"status": "error", "message": "Conversation not found"}), 404
-    if requesting_user_id == 789 and conversation_id == 1 : # Simulate user not authorized
-        return jsonify({"status": "error", "message": "User not authorized for this conversation"}), 403
+        # If authorized, fetch messages
+        messages_list = get_messages_by_conversation_id(conn, conversation_id)
 
+        return jsonify({"status": "success", "conversation_id": conversation_id, "messages": messages_list}), 200
 
-    return jsonify({"status": "success", "messages": messages_list}), 200
+    except sqlite3.Error as e:
+        print(f"Database error in get_messages_for_conversation (conv_id {conversation_id}): {e}")
+        return jsonify({"status": "error", "message": "A database error occurred while retrieving messages."}), 500
+    except Exception as e:
+        print(f"Unexpected error in get_messages_for_conversation (conv_id {conversation_id}): {e}")
+        return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
+    finally:
+        if conn:
+            conn.close()
+
+if __name__ == '__main__':
+    # Initialize the database schema when running the app directly.
+    # This is suitable for development and testing.
+    # In a production environment, database schema migrations should be handled
+    # by a dedicated migration tool (e.g., Alembic for SQLAlchemy, or custom scripts).
+    print(f"Attempting to initialize database '{DB_NAME}'...")
+    try:
+        conn = get_db_connection(DB_NAME)
+        initialize_schema(conn)
+        # Optionally, add some default users for testing if they don't exist
+        # This helps in making the API immediately testable for development.
+        cursor = conn.cursor()
+        default_users = [('devuser1',), ('devuser2',), ('devuser3',)]
+        try:
+            # Using INSERT OR IGNORE to avoid errors if users already exist from previous runs
+            cursor.executemany("INSERT OR IGNORE INTO users (username) VALUES (?)", default_users)
+            conn.commit()
+            print("Default users ensured in database for development/testing.")
+        except sqlite3.Error as e:
+            print(f"Error ensuring default users: {e}")
+        finally:
+            # Close the connection used for schema/user setup
+            if conn:
+                conn.close()
+    except sqlite3.Error as e:
+        print(f"FATAL: Could not initialize database schema for '{DB_NAME}': {e}")
+        # Potentially exit if DB is critical for app start, or let Flask try to run
+    except Exception as e:
+        print(f"An unexpected error occurred during initial setup: {e}")
+
+    app.run(debug=True, port=5000)

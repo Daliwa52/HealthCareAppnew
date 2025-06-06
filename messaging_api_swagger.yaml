@@ -1,13 +1,13 @@
 swagger: "2.0"
 info:
   title: "Messaging API"
-  description: "API for sending and retrieving messages and conversations."
-  version: "1.0.0"
-host: "localhost:5000" # Or your actual host
+  description: "API for sending and retrieving messages and conversations, utilizing an SQLite backend."
+  version: "1.0.1" # Updated version
+host: "localhost:5000" # Example host, should be configured for deployment
 basePath: "/api"
 schemes:
-  - "http"
-  - "https"
+  - "http" # For development
+  # - "https" # For production
 
 consumes:
   - "application/json"
@@ -17,6 +17,7 @@ produces:
 definitions:
   MessagePayload:
     type: "object"
+    description: "Payload for sending a new message."
     required:
       - sender_id
       - receiver_id
@@ -25,18 +26,24 @@ definitions:
       sender_id:
         type: "integer"
         format: "int32"
-        description: "ID of the message sender."
+        description: "ID of the user sending the message."
+        example: 1
       receiver_id:
         type: "integer"
         format: "int32"
-        description: "ID of the message receiver."
+        description: "ID of the user receiving the message."
+        example: 2
       content:
         type: "string"
         description: "The text content of the message."
-        example: "Hello there!"
+        example: "Hello, how are you today?"
+    xml: # Added for potential XML consumers, though API is JSON focused
+      name: "MessagePayload"
+
 
   MessageSentResponse:
     type: "object"
+    description: "Response after successfully sending a message."
     properties:
       status:
         type: "string"
@@ -45,115 +52,164 @@ definitions:
         type: "integer"
         format: "int32"
         description: "ID of the newly created message."
+        example: 456
       conversation_id:
         type: "integer"
         format: "int32"
         description: "ID of the conversation the message belongs to."
+        example: 123
       sender_id:
         type: "integer"
         format: "int32"
+        description: "ID of the message sender (echoed back)."
+        example: 1
       content:
         type: "string"
+        description: "The content of the message sent (echoed back)."
+        example: "Hello, how are you today?"
 
   Conversation:
     type: "object"
+    description: "Represents a conversation summary, including details of the other participant and the last message."
     properties:
       conversation_id:
         type: "integer"
         format: "int32"
-      # participant1_id and participant2_id are part of the placeholder data,
-      # but a real API might return 'other_participant_details'
-      other_participant_username: # Example from placeholder output
+        description: "Unique identifier for the conversation."
+      participant1_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the first participant in the conversation."
+      participant2_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the second participant in the conversation."
+      other_participant_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the other participant relative to the requesting user."
+      other_participant_username:
         type: "string"
         description: "Username of the other participant in the conversation."
-      last_message_snippet:
+      last_message_content:
         type: "string"
-        description: "A short snippet of the last message in the conversation."
+        nullable: true # Can be null if no messages yet
+        description: "Content of the most recent message in the conversation."
       last_message_timestamp:
         type: "string"
-        format: "date-time"
+        format: "date-time" # SQLite stores as TEXT, but it represents datetime
+        nullable: true # Can be null if no messages yet
         description: "Timestamp of the last message."
-      updated_at:
+      conversation_updated_at:
         type: "string"
-        format: "date-time"
-        description: "Timestamp when the conversation was last updated."
-    # Example based on placeholder data in messaging_api.py
+        format: "date-time" # SQLite stores as TEXT, but it represents datetime
+        description: "Timestamp when the conversation was last updated (e.g., by a new message)."
     example:
-      conversation_id: 1
-      other_participant_username: "UserTwo"
-      last_message_snippet: "Hello there!"
-      last_message_timestamp: "2023-10-26T10:00:00Z"
-      updated_at: "2023-10-26T10:00:00Z"
+      conversation_id: 123
+      participant1_id: 1
+      participant2_id: 2
+      other_participant_id: 2
+      other_participant_username: "devuser2"
+      last_message_content": "Hi User1! This is User2."
+      last_message_timestamp": "2024-03-10T14:30:01Z" # Example format
+      conversation_updated_at: "2024-03-10T14:30:01Z" # Example format
 
   Message:
     type: "object"
+    description: "Represents a single message within a conversation."
     properties:
       message_id:
         type: "integer"
         format: "int32"
+        description: "Unique identifier for the message."
       conversation_id:
         type: "integer"
         format: "int32"
+        description: "ID of the conversation this message belongs to."
       sender_id:
         type: "integer"
         format: "int32"
+        description: "ID of the user who sent this message."
       content:
         type: "string"
+        description: "The text content of the message."
       timestamp:
         type: "string"
-        format: "date-time"
+        format: "date-time" # SQLite stores as TEXT, but it represents datetime
+        description: "Timestamp when the message was sent."
       is_read:
-        type: "boolean"
+        type: "boolean" # API should return boolean, even if DB stores as 0/1
+        description: "Indicates if the message has been read (currently defaults to false)."
     example:
-      message_id: 101
-      conversation_id: 1
+      message_id: 456
+      conversation_id: 123
       sender_id: 1
-      content: "Hello!"
-      timestamp: "2023-10-26T09:59:00Z"
-      is_read: true
+      content: "Hello, how are you today?"
+      timestamp: "2024-03-10T14:30:00Z" # Example format
+      is_read: false
 
   Error:
     type: "object"
+    description: "Standard error response structure."
+    required:
+      - status
+      - message
     properties:
       status:
         type: "string"
         example: "error"
+        enum: # Added to show it's always 'error' for this schema
+          - "error"
       message:
         type: "string"
-        description: "A description of the error."
+        description: "A human-readable description of the error."
+        example: "Missing required fields: content"
 
 paths:
   /messages:
     post:
       summary: "Send a new message"
-      description: "Creates a new message and associates it with a conversation between the sender and receiver."
+      description: |
+        Creates a new message from a sender to a receiver.
+        If a conversation between the two users doesn't exist, it will be created.
+        The conversation's `updated_at` timestamp is refreshed upon new message creation.
       tags:
         - "Messages"
       parameters:
         - name: "body"
           in: "body"
           required: true
-          description: "Message payload"
+          description: "Payload containing sender ID, receiver ID, and message content."
           schema:
             $ref: "#/definitions/MessagePayload"
       responses:
         "201":
-          description: "Message sent successfully"
+          description: "Message sent successfully."
           schema:
             $ref: "#/definitions/MessageSentResponse"
         "400":
-          description: "Bad Request - Missing fields or invalid data"
+          description: |
+            Bad Request. Possible reasons:
+            - Invalid JSON payload.
+            - Missing required fields (`sender_id`, `receiver_id`, `content`).
+            - Invalid data types (e.g., `sender_id` or `receiver_id` not integers).
+            - Content is an empty string.
+            - Sender and receiver are the same user (`ValueError` from backend).
+            - Foreign key constraint violation (e.g., `sender_id` or `receiver_id` do not exist in users table - `sqlite3.IntegrityError`).
           schema:
             $ref: "#/definitions/Error"
         "500":
-          description: "Internal Server Error"
+          description: "Internal Server Error. Typically due to a database issue or other unexpected server problem."
           schema:
             $ref: "#/definitions/Error"
 
   /conversations:
     get:
-      summary: "Get all conversations for a user"
-      description: "Retrieves a list of conversations where the specified user is a participant."
+      summary: "Get user's conversations"
+      description: |
+        Retrieves a list of all conversations for a specified user.
+        Each conversation summary includes details of the other participant and the last message exchanged.
+        Conversations are ordered by the most recently updated.
       tags:
         - "Conversations"
       parameters:
@@ -165,26 +221,39 @@ paths:
           description: "ID of the user whose conversations are to be fetched."
       responses:
         "200":
-          description: "A list of conversations"
+          description: "A list of the user's conversations."
           schema:
             type: "object"
             properties:
               status:
                 type: "string"
                 example: "success"
+              user_id: # Added to echo back the user_id for clarity
+                type: "integer"
+                format: "int32"
               conversations:
                 type: "array"
                 items:
                   $ref: "#/definitions/Conversation"
         "400":
-          description: "Bad Request - user_id query parameter is required"
+          description: |
+            Bad Request. Possible reasons:
+            - `user_id` query parameter is missing.
+            - `user_id` is not an integer.
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: "Internal Server Error. Typically due to a database issue."
           schema:
             $ref: "#/definitions/Error"
 
   /conversations/{conversation_id}/messages:
     get:
-      summary: "Get messages for a specific conversation"
-      description: "Retrieves all messages within a given conversation, ordered by timestamp."
+      summary: "Get messages for a conversation"
+      description: |
+        Retrieves all messages within a specific conversation.
+        The requesting user (identified by `user_id` query parameter) must be a participant in the conversation.
+        Messages are ordered by timestamp (oldest first).
       tags:
         - "Conversations"
       parameters:
@@ -194,34 +263,44 @@ paths:
           format: "int32"
           required: true
           description: "ID of the conversation whose messages are to be fetched."
-        - name: "user_id" # As per messaging_api.py, used for auth placeholder
+        - name: "user_id"
           in: "query"
           type: "integer"
           format: "int32"
-          required: true # Based on current API implementation
-          description: "ID of the user requesting the messages (for authorization check)."
+          required: true
+          description: "ID of the user requesting the messages; used for authorization to ensure the user is a participant in the conversation."
       responses:
         "200":
-          description: "A list of messages in the conversation"
+          description: "A list of messages in the specified conversation."
           schema:
             type: "object"
             properties:
               status:
                 type: "string"
                 example: "success"
+              conversation_id: # Added to echo back conversation_id for clarity
+                type: "integer"
+                format: "int32"
               messages:
                 type: "array"
                 items:
                   $ref: "#/definitions/Message"
         "400":
-          description: "Bad Request - e.g., missing user_id for authorization"
+          description: |
+            Bad Request. Possible reasons:
+            - `user_id` query parameter for authorization is missing.
+            - `user_id` is not an integer.
           schema:
             $ref: "#/definitions/Error"
         "403":
-          description: "Forbidden - User not authorized for this conversation"
+          description: "Forbidden. The requesting `user_id` is not a participant in this conversation."
           schema:
             $ref: "#/definitions/Error"
         "404":
-          description: "Not Found - Conversation not found"
+          description: "Not Found. The specified `conversation_id` does not exist."
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: "Internal Server Error. Typically due to a database issue."
           schema:
             $ref: "#/definitions/Error"
