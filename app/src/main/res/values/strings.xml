@@ -49,6 +49,7 @@
     
     <!-- Errors -->
     <string name="error_network">No internet connection</string>
+    <string name="error_not_logged_in">You are not logged in. Please log in to continue.</string>
     <string name="error_authentication">Authentication failed</string>
     <string name="error_permission">Permission denied</string>
     <string name="error_validation">Please fill in all required fields</string>
