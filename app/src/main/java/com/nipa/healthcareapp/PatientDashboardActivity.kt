@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.NavigationUI
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.navigation.NavigationView
@@ -34,7 +35,15 @@ class PatientDashboardActivity : AppCompatActivity() {
         )
 
         setupActionBarWithNavController(navController, appBarConfiguration)
-        navView.setupWithNavController(navController)
+        // navView.setupWithNavController(navController)
+        navView.setNavigationItemSelectedListener { menuItem ->
+            val handled = NavigationUI.onNavDestinationSelected(menuItem, navController)
+            if (handled) {
+                val drawerLayout = findViewById<androidx.drawerlayout.widget.DrawerLayout>(R.id.drawerLayout)
+                drawerLayout.closeDrawers()
+            }
+            handled
+        }
 
         val fabUpload: com.google.android.material.floatingactionbutton.FloatingActionButton = findViewById(R.id.fabUpload)
         fabUpload.setOnClickListener {
