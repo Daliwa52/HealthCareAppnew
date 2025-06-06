@@ -1,0 +1,584 @@
+swagger: "2.0"
+info:
+  title: "Appointment API"
+  description: "API for managing provider availability and scheduling patient appointments."
+  version: "1.0.0"
+host: "localhost:5002" # Default from appointment_api.py
+basePath: "/api"
+schemes:
+  - "http" # For development
+  # - "https" # For production
+
+consumes:
+  - "application/json"
+produces:
+  - "application/json"
+
+definitions:
+  Error:
+    type: "object"
+    description: "Standard error response structure."
+    required:
+      - status
+      - message
+    properties:
+      status:
+        type: "string"
+        enum: ["error"]
+        example: "error"
+      message:
+        type: "string"
+        description: "A human-readable description of the error."
+        example: "Missing required fields."
+
+  ProviderIdPayload:
+    type: "object"
+    description: "Payload requiring a provider_id, often for authorization simulation."
+    required:
+      - provider_id
+    properties:
+      provider_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the provider performing the action or being referenced."
+        example: 1
+
+  UserIdPayload: # Could be part of a more generic UserContextPayload
+    type: "object"
+    description: "Payload requiring a user_id, often for authorization simulation."
+    required:
+      - user_id
+    properties:
+      user_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the user performing the action or being referenced."
+        example: 101
+
+  ProviderAvailabilityPayload:
+    type: "object"
+    description: "Payload for creating or updating a provider's availability slot."
+    required:
+      - start_datetime
+      - end_datetime
+    properties:
+      start_datetime:
+        type: "string"
+        format: "date-time"
+        description: "Start date and time of the availability block (YYYY-MM-DD HH:MM:SS)."
+        example: "2024-08-01 09:00:00"
+      end_datetime:
+        type: "string"
+        format: "date-time"
+        description: "End date and time of the availability block (YYYY-MM-DD HH:MM:SS)."
+        example: "2024-08-01 12:00:00"
+      recurring_rule:
+        type: "string"
+        nullable: true
+        description: "Optional iCalendar RRULE string for recurring availability."
+        example: "FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20241231T235959Z"
+
+  ProviderAvailabilityResponse:
+    type: "object"
+    description: "Represents a single availability block for a provider."
+    properties:
+      availability_id:
+        type: "integer"
+        format: "int32"
+      provider_id:
+        type: "integer"
+        format: "int32"
+      start_datetime:
+        type: "string"
+        format: "date-time"
+      end_datetime:
+        type: "string"
+        format: "date-time"
+      recurring_rule:
+        type: "string"
+        nullable: true
+    example:
+      availability_id: 101
+      provider_id: 1
+      start_datetime: "2024-08-01 09:00:00"
+      end_datetime: "2024-08-01 12:00:00"
+      recurring_rule: null
+
+  AppointmentRequestPayload:
+    type: "object"
+    description: "Payload for a patient to request a new appointment."
+    required:
+      - patient_id
+      - provider_id
+      - appointment_start_time
+      - appointment_end_time
+    properties:
+      patient_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the patient requesting the appointment."
+        example: 101
+      provider_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the provider for the appointment."
+        example: 1
+      appointment_start_time:
+        type: "string"
+        format: "date-time"
+        description: "Requested start time for the appointment (YYYY-MM-DD HH:MM:SS)."
+        example: "2024-08-01 10:00:00"
+      appointment_end_time:
+        type: "string"
+        format: "date-time"
+        description: "Requested end time for the appointment (YYYY-MM-DD HH:MM:SS)."
+        example: "2024-08-01 10:30:00"
+      reason_for_visit:
+        type: "string"
+        nullable: true
+        description: "Optional reason for the visit."
+        example: "Annual Checkup"
+      notes_by_patient:
+        type: "string"
+        nullable: true
+        description: "Optional notes from the patient."
+        example: "Prefer morning slots if possible."
+
+  AppointmentResponse: # Detailed view of an appointment
+    type: "object"
+    description: "Represents a detailed view of an appointment."
+    properties:
+      appointment_id:
+        type: "integer"
+        format: "int32"
+      patient_id:
+        type: "integer"
+        format: "int32"
+      provider_id:
+        type: "integer"
+        format: "int32"
+      appointment_start_time:
+        type: "string"
+        format: "date-time"
+      appointment_end_time:
+        type: "string"
+        format: "date-time"
+      reason_for_visit:
+        type: "string"
+        nullable: true
+      status:
+        type: "string"
+        description: "Current status of the appointment."
+        example: "confirmed"
+      video_room_name:
+        type: "string"
+        nullable: true
+        description: "Name of the video room, generated upon confirmation."
+      notes_by_patient:
+        type: "string"
+        nullable: true
+      notes_by_provider:
+        type: "string"
+        nullable: true
+      last_reminder_sent_at:
+        type: "string"
+        format: "date-time"
+        nullable: true
+      created_at:
+        type: "string"
+        format: "date-time"
+      updated_at:
+        type: "string"
+        format: "date-time"
+      patient_username: # Joined from users table
+        type: "string"
+      provider_username: # Joined from users table
+        type: "string"
+    example:
+      appointment_id: 205
+      patient_id: 101
+      provider_id: 1
+      appointment_start_time": "2024-08-01 10:00:00"
+      appointment_end_time": "2024-08-01 10:30:00"
+      reason_for_visit": "Annual Checkup"
+      status": "confirmed"
+      video_room_name": "ApptRoom_205_timestamp"
+      notes_by_patient": "Prefer morning slots if possible."
+      notes_by_provider": "Confirmed."
+      last_reminder_sent_at": null
+      created_at": "2024-07-28T10:00:00Z"
+      updated_at": "2024-07-28T10:05:00Z"
+      patient_username": "patient_bob"
+      provider_username": "doc_alice"
+
+  CancelAppointmentPayload:
+    type: "object"
+    description: "Payload for cancelling an appointment."
+    required:
+      - user_id
+      - cancelled_by_role
+    properties:
+      user_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the user performing the cancellation (for auth simulation)."
+        example: 101
+      cancelled_by_role:
+        type: "string"
+        enum: ["patient", "provider"]
+        description: "Role of the user cancelling the appointment."
+        example: "patient"
+      reason:
+        type: "string"
+        nullable: true
+        description: "Optional reason for cancellation."
+        example: "No longer needed."
+
+paths:
+  /providers/{provider_id}/availability:
+    post:
+      summary: "Add Provider Availability"
+      description: "Allows a provider to add a new block of their availability."
+      operationId: "addProviderAvailability"
+      tags: ["Provider Availability"]
+      parameters:
+        - name: "provider_id"
+          in: "path"
+          type: "integer"
+          required: true
+          description: "ID of the provider."
+        - name: "body"
+          in: "body"
+          required: true
+          description: "Availability slot details."
+          schema:
+            $ref: "#/definitions/ProviderAvailabilityPayload"
+      responses:
+        "201":
+          description: "Availability added successfully."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              message: { type: "string", example: "Availability added successfully." }
+              availability_id: { type: "integer", format: "int32" }
+              provider_id: { type: "integer", format: "int32" }
+        "400":
+          description: "Bad Request (e.g., missing fields, invalid format, provider not found, invalid time range)."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+    get:
+      summary: "Get Provider Availability"
+      description: "Retrieves availability blocks for a specified provider, with optional time filters."
+      operationId: "getProviderAvailability"
+      tags: ["Provider Availability"]
+      parameters:
+        - name: "provider_id"
+          in: "path"
+          type: "integer"
+          required: true
+          description: "ID of the provider."
+        - name: "start_filter"
+          in: "query"
+          type: "string"
+          format: "date-time"
+          required: false
+          description: "Filter availability from this start time (YYYY-MM-DD HH:MM:SS)."
+        - name: "end_filter"
+          in: "query"
+          type: "string"
+          format: "date-time"
+          required: false
+          description: "Filter availability up to this end time (YYYY-MM-DD HH:MM:SS)."
+      responses:
+        "200":
+          description: "A list of availability blocks."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              provider_id: { type: "integer", format: "int32" }
+              availability:
+                type: "array"
+                items:
+                  $ref: "#/definitions/ProviderAvailabilityResponse"
+        "400":
+          description: "Bad Request (e.g., invalid filter format)."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /providers/availability/{availability_id}:
+    delete:
+      summary: "Delete Provider Availability Slot"
+      description: "Allows a provider to delete one of their specific availability slots."
+      operationId: "deleteProviderAvailability"
+      tags: ["Provider Availability"]
+      parameters:
+        - name: "availability_id"
+          in: "path"
+          type: "integer"
+          required: true
+          description: "ID of the availability slot to delete."
+        - name: "body" # provider_id for auth simulation passed in body
+          in: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/ProviderIdPayload"
+      responses:
+        "200":
+          description: "Availability slot deleted successfully."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              message: { type: "string", example: "Availability slot deleted successfully." }
+        "400":
+          description: "Bad Request (e.g., missing provider_id in payload)."
+          schema: { $ref: "#/definitions/Error" }
+        "404": # Or 403 if distinguishing "not yours" from "doesn't exist"
+          description: "Not Found (Availability slot not found or not authorized to delete)."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /appointments/request:
+    post:
+      summary: "Request an Appointment"
+      description: "Allows a patient to request a new appointment with a provider."
+      operationId: "requestAppointment"
+      tags: ["Appointments"]
+      parameters:
+        - name: "body"
+          in: "body"
+          required: true
+          description: "Details of the appointment request."
+          schema:
+            $ref: "#/definitions/AppointmentRequestPayload"
+      responses:
+        "201":
+          description: "Appointment requested successfully."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              message: { type: "string", example: "Appointment requested successfully. Awaiting provider confirmation." }
+              appointment_id: { type: "integer", format: "int32" }
+        "400":
+          description: "Bad Request (e.g., missing fields, invalid user IDs, invalid time range)."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /appointments/{appointment_id}:
+    get:
+      summary: "Get Appointment Details"
+      description: "Retrieves details for a specific appointment. Requires user_id for authorization simulation."
+      operationId: "getAppointmentDetails"
+      tags: ["Appointments"]
+      parameters:
+        - name: "appointment_id"
+          in: "path"
+          type: "integer"
+          required: true
+          description: "ID of the appointment."
+        - name: "user_id"
+          in: "query"
+          type: "integer"
+          required: true
+          description: "ID of the user requesting details (for auth simulation)."
+      responses:
+        "200":
+          description: "Detailed information about the appointment."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              appointment: { $ref: "#/definitions/AppointmentResponse" }
+        "400":
+          description: "Bad Request (e.g., missing user_id query param)."
+          schema: { $ref: "#/definitions/Error" }
+        "403":
+          description: "Forbidden (User not authorized to view this appointment)."
+          schema: { $ref: "#/definitions/Error" }
+        "404":
+          description: "Not Found (Appointment not found)."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /appointments/{appointment_id}/confirm:
+    put:
+      summary: "Confirm an Appointment"
+      description: "Allows a provider to confirm a pending appointment. Simulates provider auth via provider_id in payload."
+      operationId: "confirmAppointment"
+      tags: ["Appointments"]
+      parameters:
+        - name: "appointment_id"
+          in: "path"
+          type: "integer"
+          required: true
+          description: "ID of the appointment to confirm."
+        - name: "body"
+          in: "body"
+          required: true
+          description: "Provider ID for authorization simulation."
+          schema:
+            $ref: "#/definitions/ProviderIdPayload" # Reusing for { "provider_id": id }
+      responses:
+        "200":
+          description: "Appointment confirmed successfully."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              appointment: { $ref: "#/definitions/AppointmentResponse" } # Returns updated appointment
+        "400":
+          description: "Bad Request (e.g., missing provider_id)."
+          schema: { $ref: "#/definitions/Error" }
+        "403": # Or 404, API returns combined message
+          description: "Forbidden/Not Found (Appointment not found, not confirmable, or unauthorized)."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /appointments/{appointment_id}/cancel:
+    put:
+      summary: "Cancel an Appointment"
+      description: "Allows a patient or provider to cancel an appointment. Simulates user context via payload."
+      operationId: "cancelAppointment"
+      tags: ["Appointments"]
+      parameters:
+        - name: "appointment_id"
+          in: "path"
+          type: "integer"
+          required: true
+          description: "ID of the appointment to cancel."
+        - name: "body"
+          in: "body"
+          required: true
+          description: "Details for cancellation, including user context."
+          schema:
+            $ref: "#/definitions/CancelAppointmentPayload"
+      responses:
+        "200":
+          description: "Appointment cancelled successfully."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              message: { type: "string", example: "Appointment cancelled successfully." }
+              appointment_id: { type: "integer", format: "int32" }
+              new_appointment_status: { type: "string" }
+        "400":
+          description: "Bad Request (e.g., missing fields, invalid role)."
+          schema: { $ref: "#/definitions/Error" }
+        "403": # Or 404
+          description: "Forbidden/Not Found (Appointment not found, not cancellable, or unauthorized)."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /providers/{provider_id}/appointments:
+    get:
+      summary: "Get Provider's Appointments"
+      description: "Retrieves a list of appointments for a specified provider, with optional filters."
+      operationId: "getProviderAppointments"
+      tags: ["Appointments"]
+      parameters:
+        - name: "provider_id"
+          in: "path"
+          type: "integer"
+          required: true
+          description: "ID of the provider."
+        - name: "status"
+          in: "query"
+          type: "string"
+          required: false
+          description: "Filter appointments by status."
+        - name: "date_from"
+          in: "query"
+          type: "string"
+          format: "date" # YYYY-MM-DD
+          required: false
+          description: "Filter appointments from this date (YYYY-MM-DD)."
+        - name: "date_to"
+          in: "query"
+          type: "string"
+          format: "date" # YYYY-MM-DD
+          required: false
+          description: "Filter appointments up to this date (YYYY-MM-DD)."
+      responses:
+        "200":
+          description: "A list of the provider's appointments."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              provider_id: { type: "integer", format: "int32" }
+              appointments:
+                type: "array"
+                items:
+                  $ref: "#/definitions/AppointmentResponse" # Each item is a full appointment detail
+        "400":
+          description: "Bad Request (e.g., invalid date format)."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /patients/{patient_id}/appointments:
+    get:
+      summary: "Get Patient's Appointments"
+      description: "Retrieves a list of appointments for a specified patient, with optional filters."
+      operationId: "getPatientAppointments"
+      tags: ["Appointments"]
+      parameters:
+        - name: "patient_id"
+          in: "path"
+          type: "integer"
+          required: true
+          description: "ID of the patient."
+        - name: "status"
+          in: "query"
+          type: "string"
+          required: false
+          description: "Filter appointments by status."
+        - name: "date_from"
+          in: "query"
+          type: "string"
+          format: "date" # YYYY-MM-DD
+          required: false
+          description: "Filter appointments from this date (YYYY-MM-DD)."
+        - name: "date_to"
+          in: "query"
+          type: "string"
+          format: "date" # YYYY-MM-DD
+          required: false
+          description: "Filter appointments up to this date (YYYY-MM-DD)."
+      responses:
+        "200":
+          description: "A list of the patient's appointments."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              patient_id: { type: "integer", format: "int32" }
+              appointments:
+                type: "array"
+                items:
+                  $ref: "#/definitions/AppointmentResponse"
+        "400":
+          description: "Bad Request (e.g., invalid date format)."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
