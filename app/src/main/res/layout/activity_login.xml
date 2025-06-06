@@ -93,6 +93,19 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
+    <!-- Forgot Password Text -->
+    <TextView
+        android:id="@+id/tvForgotPassword"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="24dp"
+        android:text="@string/text_forgot_password"
+        android:textColor="@color/primary"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tilPassword" />
+
     <!-- Login Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnLogin"
@@ -107,14 +120,14 @@
         app:cornerRadius="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tilPassword" />
+        app:layout_constraintTop_toBottomOf="@id/tvForgotPassword" />
 
     <!-- Register Text -->
     <TextView
         android:id="@+id/tvRegister"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="24dp"
         android:text="@string/dont_have_an_account"
         android:textColor="@color/text_secondary"
         android:textSize="14sp"
@@ -135,6 +148,55 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvRegister" />
+
+    <!-- Error Container -->
+    <!-- Note: The error container was previously constrained to tilPassword.
+         If it's meant to be generally below the input fields and above the buttons,
+         its constraint might need adjustment if tvForgotPassword is very tall,
+         or it might be intended to appear over other elements.
+         For now, leaving its constraint as is, as it might be dynamically shown/hidden
+         and not strictly part of the main flow of elements for tvForgotPassword positioning.
+         If it needs to be below tvForgotPassword, its top constraint should also be updated.
+         Given the current problem description, focusing on tvForgotPassword and its direct impact.
+    -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/errorContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/error"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="2dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tilPassword">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/errorText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retryButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="8dp"
+                android:text="@string/try_again"
+                android:textColor="@color/error"
+                android:backgroundTint="@color/white" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Loading Indicator -->
     <ProgressBar

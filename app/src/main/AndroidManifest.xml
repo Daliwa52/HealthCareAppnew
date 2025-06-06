@@ -40,6 +40,67 @@
             android:exported="false"
             android:theme="@style/Theme.HealthCareApp" />
 
+        <!-- Forgot Password Activity -->
+        <activity
+            android:name=".ForgotPasswordActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+
+        <!-- Patient Dashboard Activity -->
+        <activity
+            android:name=".PatientDashboardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+
+        <!-- Patient Profile Activity -->
+        <activity
+            android:name=".PatientProfileActivity"
+            android:label="@string/title_activity_patient_profile"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+
+        <!-- Professional Profile Activity -->
+        <activity
+            android:name=".ProfessionalProfileActivity"
+            android:label="@string/title_activity_professional_profile"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+
+        <!-- Select Professional Activity -->
+        <activity
+            android:name=".SelectProfessionalActivity"
+            android:label="@string/title_select_professional"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+
+        <!-- View Professional Profile For Patient Activity -->
+        <activity
+            android:name=".ViewProfessionalProfileForPatientActivity"
+            android:label="@string/title_activity_view_professional_profile_for_patient"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+
+        <!-- Request Appointment Activity -->
+        <activity
+            android:name=".RequestAppointmentActivity"
+            android:label="@string/title_activity_request_appointment"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+
+        <!-- Provider Appointments Activity -->
+        <activity
+            android:name=".ProviderAppointmentsActivity"
+            android:label="@string/title_activity_provider_appointments"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+
+        <!-- Patient Appointments Activity -->
+        <activity
+            android:name=".PatientAppointmentsActivity"
+            android:label="@string/title_activity_patient_appointments"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+
         <!-- Main Activity -->
         <activity
             android:name=".MainActivity"

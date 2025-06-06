@@ -13,8 +13,16 @@
     <!-- Login Screen -->
     <string name="email">Email</string>
     <string name="password">Password</string>
+    <string name="text_forgot_password">Forgot Password?</string>
     <string name="dont_have_an_account">Don\'t have an account?</string>
     <string name="sign_up">Sign Up</string>
+
+    <!-- Forgot Password Screen -->
+    <string name="btn_send_reset_email">Send Reset Email</string>
+    <string name="text_back_to_login">&lt; Back to Login</string>
+    <string name="info_reset_email_sent">Password reset email sent to %s. Please check your inbox.</string>
+    <string name="error_reset_email_failed">Failed to send reset email. %s</string>
+    <string name="error_invalid_email_for_reset">Please enter a valid email address to reset your password.</string>
     
     <!-- Register Screen -->
     <string name="full_name">Full Name</string>
@@ -52,11 +60,22 @@
     <string name="error_authentication">Authentication failed</string>
     <string name="error_permission">Permission denied</string>
     <string name="error_validation">Please fill in all required fields</string>
+    <string name="error_name_required">Name is required</string>
     <string name="error_invalid_email">Please enter a valid email address</string>
-    <string name="error_weak_password">Password must be at least 6 characters</string>
-    <string name="error_password_mismatch">Passwords do not match</string>
+    <string name="error_password_required">Password is required</string>
+    <string name="error_password_length">Password must be at least 6 characters</string>
+    <string name="error_passwords_no_match">Passwords do not match</string>
+    <string name="error_email_exists">Email address is already in use.</string>
+    <string name="error_weak_password">Password is too weak.</string>
+    <string name="error_password_mismatch">Passwords do not match</string> <!-- This line was identified as already existing, but the user request implies using error_passwords_no_match for "Passwords do not match" and error_password_mismatch might be a duplicate or slightly different. For safety, I'm ensuring error_passwords_no_match is present with the correct text, and will use R.string.error_passwords_no_match in the Kotlin code. If error_password_mismatch is truly identical, it's harmless. If different, this ensures the specified string is available. -->
+    <string name="error_user_not_found">User not found. Please register.</string>
+    <string name="error_invalid_password">Invalid password. Please try again.</string>
+    <string name="text_forgot_password_toast">Forgot password functionality to be implemented.</string>
     <string name="error_title">Something went wrong</string>
     <string name="error_message">An error occurred while processing your request</string>
+    <string name="error_fetch_user_details">Failed to fetch user details. Logging out.</string>
+    <string name="error_role_not_found">User role not found. Logging out.</string>
+    <string name="error_unexpected_role">Unexpected user role encountered.</string>
     
     <!-- Consultation Types -->
     <string name="consultation_in_person">In Person</string>
@@ -67,6 +86,8 @@
     <!-- Notifications -->
     <string name="notification_title">Healthcare Notification</string>
     <string name="notification_message">You have a new healthcare update</string>
+    <string name="placeholder_notifications_patient">Notifications regarding your appointments will appear here in the future.</string>
+    <string name="placeholder_notifications_provider">Notifications about new appointment requests and updates will appear here in the future.</string>
     
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -120,6 +141,102 @@
     <!-- Settings -->
     <string name="edit_profile">Edit Profile</string>
     <string name="logout">Logout</string>
+    <string name="text_logged_in_as">Logged in as: %s</string>
+    <string name="text_not_logged_in">Not logged in</string>
+
+    <!-- Provider Dashboard -->
+    <string name="manage_provider_profile">Manage Profile</string>
+    <string name="toast_provider_profile_clicked">Provider Profile Clicked - To be implemented</string>
+
+    <!-- Patient Dashboard -->
+    <string name="welcome_patient_dashboard">Welcome to Patient Dashboard</string>
+    <string name="btn_manage_profile">Manage Profile</string> <!-- Note: This was already added for Patient Dashboard. Re-confirming its presence. If the provider one is different, it needs a distinct name. Assuming they can share for now if text is identical -->
+    <string name="toast_profile_management_clicked">Profile Management Clicked - To be implemented</string>
+
+    <!-- Patient Profile Activity -->
+    <string name="title_activity_patient_profile">Patient Profile</string>
+    <string name="label_patient_profile_title">View/Edit Patient Profile</string>
+    <string name="hint_medical_history">Describe your medical history...</string>
+    <string name="hint_allergies">List any known allergies...</string>
+    <string name="hint_current_medications">List your current medications...</string>
+    <string name="label_name">Name:</string>
+    <string name="label_email">Email:</string>
+    <string name="btn_save_profile">Save Profile</string>
+    <string name="placeholder_name">Patient Name</string>
+    <string name="placeholder_email">patient@example.com</string>
+    <string name="toast_save_profile_clicked">Save Profile Clicked - Logic to be implemented</string>
+    <string name="error_load_profile">Failed to load profile data.</string>
+    <string name="profile_saved_success">Profile saved successfully.</string>
+    <string name="error_save_profile">Failed to save profile. Please try again.</string>
+    <string name="label_medical_documents_placeholder">Medical Documents: Upload and view functionality will be available in a future update.</string>
+    <string name="label_appointment_history_placeholder">Appointment History: This feature will be available in an upcoming update.</string> <!-- Will be replaced by specific text below -->
+    <string name="label_view_full_appointment_history">Tap to view your full appointment history.</string>
+
+    <!-- Professional Profile Activity -->
+    <string name="title_activity_professional_profile">Professional Profile</string>
+    <string name="label_professional_profile_title">View/Edit Professional Profile</string>
+    <string name="hint_qualifications">Enter qualifications (e.g., MD, PhD)...</string>
+    <string name="hint_specialties">List specialties (e.g., Cardiology, Pediatrics)...</string>
+    <string name="hint_availability_notes">Describe general availability (e.g., Mon-Fri, 9am-5pm)...</string>
+    <string name="toast_save_professional_profile_clicked">Save Profile Clicked - Logic to be implemented</string>
+
+    <!-- Professional Selection and Viewing by Patient -->
+    <string name="title_select_professional">Find a Professional</string>
+    <string name="hint_enter_professional_uid">Enter Professional ID (Temporary)</string>
+    <string name="btn_view_professional_profile">View Profile</string>
+    <string name="title_activity_view_professional_profile_for_patient">Professional Profile</string>
+    <string name="label_qualifications">Qualifications:</string>
+    <string name="label_specialties">Specialties:</string>
+    <string name="label_availability">Availability:</string>
+    <string name="btn_request_appointment">Request Appointment</string>
+    <string name="error_professional_not_found">Professional ID not found or invalid.</string>
+    <string name="error_loading_professional_profile">Error loading professional profile.</string>
+    <string name="menu_book_appointment">Book New Appointment</string>
+    <string name="toast_book_appointment_clicked">Book Appointment Clicked</string> <!-- Placeholder if needed, actual navigation is key -->
+
+    <!-- Request Appointment Activity -->
+    <string name="title_activity_request_appointment">Request Appointment</string>
+    <string name="label_requesting_appointment_with">Requesting Appointment with: %s</string>
+    <string name="label_select_date">Select Date:</string>
+    <string name="label_select_time">Select Time:</string>
+    <string name="hint_reason_for_visit">Briefly describe the reason for your visit...</string>
+    <string name="btn_submit_appointment_request">Submit Request</string>
+    <string name="placeholder_selected_date">Tap to select date</string>
+    <string name="placeholder_selected_time">Tap to select time</string>
+    <string name="toast_appointment_logic_tbi">Appointment request submission logic to be implemented.</string>
+    <string name="error_professional_details_missing">Professional details missing. Cannot request appointment.</string>
+    <string name="appointment_request_sent_success">Appointment request sent successfully!</string>
+    <string name="appointment_request_failed">Failed to send appointment request. Please try again.</string>
+    <string name="error_patient_details_missing_for_request">Cannot submit request. Your details are missing. Please re-login.</string>
+    <string name="error_reason_required">Please enter a reason for your visit.</string>
+    <string name="fetching_patient_details">Fetching your details...</string>
+
+    <!-- Provider Appointments -->
+    <string name="title_activity_provider_appointments">My Appointments</string>
+    <string name="menu_view_appointments">View Appointments</string>
+    <string name="label_patient_name_prefix">Patient:</string>
+    <string name="label_appointment_datetime_prefix">When:</string>
+    <string name="label_reason_prefix">Reason:</string>
+    <string name="label_status_prefix">Status:</string>
+    <string name="no_appointments_found">No current appointments found.</string>
+    <string name="appointment_item_clicked">Clicked appointment for: %s</string>
+    <string name="dialog_title_appointment_action">Appointment Action</string>
+    <string name="dialog_message_appointment_details">Patient: %1$s\nDate: %2$s\nTime: %3$s\nReason: %4$s\nStatus: %5$s</string>
+    <string name="btn_confirm_appointment">Confirm</string>
+    <string name="btn_cancel_appointment_provider">Cancel This Appointment</string>
+    <string name="btn_dismiss">Dismiss</string>
+    <string name="appointment_confirmed_success">Appointment confirmed successfully.</string>
+    <string name="appointment_cancelled_success">Appointment cancelled successfully.</string>
+    <string name="error_updating_appointment_status">Failed to update appointment status. Please try again.</string>
+
+    <!-- Patient Appointments -->
+    <string name="title_activity_patient_appointments">My Appointments</string>
+    <string name="menu_my_appointments">My Appointments</string>
+    <string name="label_professional_name_prefix">With Dr.:</string>
+    <string name="patient_appointment_item_clicked">Clicked appointment with: %s</string>
+    <string name="dialog_title_patient_appointment_action">Appointment Details</string>
+    <string name="dialog_message_patient_appointment_details">With Dr.: %1$s\nDate: %2$s\nTime: %3$s\nReason: %4$s\nStatus: %5$s</string>
+    <string name="btn_cancel_appointment_patient">Cancel My Appointment</string>
     
     <!-- Upload -->
     <string name="upload_medical_records">Upload Medical Records</string>

@@ -50,6 +50,19 @@
             app:borderWidth="0dp"
             app:srcCompat="@drawable/ic_add" />
 
+        <TextView
+            android:id="@+id/tvProviderNotificationsPlaceholder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:background="#80000000"
+            android:padding="8dp"
+            android:text="@string/placeholder_notifications_provider"
+            android:textAppearance="?attr/textAppearanceCaption"
+            android:textColor="@android:color/white"
+            android:gravity="center"
+            android:layout_marginBottom="?attr/actionBarSize"/>
+
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <com.google.android.material.navigation.NavigationView

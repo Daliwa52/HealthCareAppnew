@@ -9,6 +9,15 @@
     android:padding="16dp"
     android:theme="@style/ThemeOverlay.MaterialComponents.Dark">
 
+    <TextView
+        android:id="@+id/tvPatientWelcome"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/welcome_patient_dashboard"
+        android:textAppearance="?attr/textAppearanceHeadline5"
+        android:textColor="@color/white"
+        android:layout_marginBottom="8dp"/>
+
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/imageView"
         android:layout_width="64dp"
