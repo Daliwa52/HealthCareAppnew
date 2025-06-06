@@ -1,0 +1,227 @@
+swagger: "2.0"
+info:
+  title: "Messaging API"
+  description: "API for sending and retrieving messages and conversations."
+  version: "1.0.0"
+host: "localhost:5000" # Or your actual host
+basePath: "/api"
+schemes:
+  - "http"
+  - "https"
+
+consumes:
+  - "application/json"
+produces:
+  - "application/json"
+
+definitions:
+  MessagePayload:
+    type: "object"
+    required:
+      - sender_id
+      - receiver_id
+      - content
+    properties:
+      sender_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the message sender."
+      receiver_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the message receiver."
+      content:
+        type: "string"
+        description: "The text content of the message."
+        example: "Hello there!"
+
+  MessageSentResponse:
+    type: "object"
+    properties:
+      status:
+        type: "string"
+        example: "success"
+      message_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the newly created message."
+      conversation_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the conversation the message belongs to."
+      sender_id:
+        type: "integer"
+        format: "int32"
+      content:
+        type: "string"
+
+  Conversation:
+    type: "object"
+    properties:
+      conversation_id:
+        type: "integer"
+        format: "int32"
+      # participant1_id and participant2_id are part of the placeholder data,
+      # but a real API might return 'other_participant_details'
+      other_participant_username: # Example from placeholder output
+        type: "string"
+        description: "Username of the other participant in the conversation."
+      last_message_snippet:
+        type: "string"
+        description: "A short snippet of the last message in the conversation."
+      last_message_timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of the last message."
+      updated_at:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp when the conversation was last updated."
+    # Example based on placeholder data in messaging_api.py
+    example:
+      conversation_id: 1
+      other_participant_username: "UserTwo"
+      last_message_snippet: "Hello there!"
+      last_message_timestamp: "2023-10-26T10:00:00Z"
+      updated_at: "2023-10-26T10:00:00Z"
+
+  Message:
+    type: "object"
+    properties:
+      message_id:
+        type: "integer"
+        format: "int32"
+      conversation_id:
+        type: "integer"
+        format: "int32"
+      sender_id:
+        type: "integer"
+        format: "int32"
+      content:
+        type: "string"
+      timestamp:
+        type: "string"
+        format: "date-time"
+      is_read:
+        type: "boolean"
+    example:
+      message_id: 101
+      conversation_id: 1
+      sender_id: 1
+      content: "Hello!"
+      timestamp: "2023-10-26T09:59:00Z"
+      is_read: true
+
+  Error:
+    type: "object"
+    properties:
+      status:
+        type: "string"
+        example: "error"
+      message:
+        type: "string"
+        description: "A description of the error."
+
+paths:
+  /messages:
+    post:
+      summary: "Send a new message"
+      description: "Creates a new message and associates it with a conversation between the sender and receiver."
+      tags:
+        - "Messages"
+      parameters:
+        - name: "body"
+          in: "body"
+          required: true
+          description: "Message payload"
+          schema:
+            $ref: "#/definitions/MessagePayload"
+      responses:
+        "201":
+          description: "Message sent successfully"
+          schema:
+            $ref: "#/definitions/MessageSentResponse"
+        "400":
+          description: "Bad Request - Missing fields or invalid data"
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: "Internal Server Error"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /conversations:
+    get:
+      summary: "Get all conversations for a user"
+      description: "Retrieves a list of conversations where the specified user is a participant."
+      tags:
+        - "Conversations"
+      parameters:
+        - name: "user_id"
+          in: "query"
+          type: "integer"
+          format: "int32"
+          required: true
+          description: "ID of the user whose conversations are to be fetched."
+      responses:
+        "200":
+          description: "A list of conversations"
+          schema:
+            type: "object"
+            properties:
+              status:
+                type: "string"
+                example: "success"
+              conversations:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Conversation"
+        "400":
+          description: "Bad Request - user_id query parameter is required"
+          schema:
+            $ref: "#/definitions/Error"
+
+  /conversations/{conversation_id}/messages:
+    get:
+      summary: "Get messages for a specific conversation"
+      description: "Retrieves all messages within a given conversation, ordered by timestamp."
+      tags:
+        - "Conversations"
+      parameters:
+        - name: "conversation_id"
+          in: "path"
+          type: "integer"
+          format: "int32"
+          required: true
+          description: "ID of the conversation whose messages are to be fetched."
+        - name: "user_id" # As per messaging_api.py, used for auth placeholder
+          in: "query"
+          type: "integer"
+          format: "int32"
+          required: true # Based on current API implementation
+          description: "ID of the user requesting the messages (for authorization check)."
+      responses:
+        "200":
+          description: "A list of messages in the conversation"
+          schema:
+            type: "object"
+            properties:
+              status:
+                type: "string"
+                example: "success"
+              messages:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Message"
+        "400":
+          description: "Bad Request - e.g., missing user_id for authorization"
+          schema:
+            $ref: "#/definitions/Error"
+        "403":
+          description: "Forbidden - User not authorized for this conversation"
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: "Not Found - Conversation not found"
+          schema:
+            $ref: "#/definitions/Error"
