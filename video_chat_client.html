@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twilio Video Chat</title>
+    <!--
+      Placeholder for Twilio Video JavaScript SDK
+      In a real application, you would include the SDK from a CDN, for example:
+      <script src="//sdk.twilio.com/js/video/releases/2.x.x/twilio-video.min.js"></script>
+      Replace 2.x.x with the desired SDK version.
+    -->
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .video-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .video-box {
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden; /* Prevents video overflow */
+        }
+        #local-media {
+            width: 320px;
+            height: 240px;
+        }
+        #remote-media {
+            width: 100%; /* Take remaining width or adjust as needed */
+            min-height: 240px; /* Minimum height for remote participants */
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        #remote-media video, #remote-media audio { /* Style for dynamically added remote tracks */
+            width: 320px;
+            height: 240px;
+            border: 1px solid #ddd;
+        }
+        .controls { margin-bottom: 20px; }
+        .controls label { margin-right: 5px; }
+        .controls input { margin-right: 10px; padding: 5px; }
+        .controls button { padding: 8px 15px; }
+        #log { margin-top: 10px; font-size: 0.9em; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>Simple Video Chat Client</h1>
+
+    <div class="controls">
+        <label for="identity">Your Name/Identity:</label>
+        <input type="text" id="identity" name="identity" value="user1">
+
+        <label for="roomName">Room Name:</label>
+        <input type="text" id="roomName" name="roomName" value="MyCoolRoom">
+
+        <button id="joinCallButton">Join Call</button>
+        <button id="leaveCallButton" style="display:none;">Leave Call</button>
+        <button id="shareScreenButton" style="display:none;">Share Screen</button>
+        <button id="stopShareScreenButton" style="display:none;">Stop Sharing</button>
+    </div>
+
+    <div id="log"></div>
+
+    <div class="video-container">
+        <div id="local-media" class="video-box">
+            <p>Local Video</p> <!-- Placeholder text -->
+        </div>
+        <div id="remote-media" class="video-box">
+            <!-- Remote participants' videos will be added here -->
+            <p>Remote Videos</p> <!-- Placeholder text -->
+        </div>
+    </div>
+
+    <script>
+        const joinCallButton = document.getElementById('joinCallButton');
+        const leaveCallButton = document.getElementById('leaveCallButton');
+        const shareScreenButton = document.getElementById('shareScreenButton');
+        const stopShareScreenButton = document.getElementById('stopShareScreenButton');
+        const identityInput = document.getElementById('identity');
+        const roomNameInput = document.getElementById('roomName');
+        const localMediaContainer = document.getElementById('local-media');
+        const remoteMediaContainer = document.getElementById('remote-media');
+        const logDiv = document.getElementById('log');
+
+        let currentRoom = null;
+        let screenTrack = null; // To store the screen sharing track
+
+        function log(message) {
+            console.log(message);
+            logDiv.textContent = message;
+        }
+
+        // Placeholder: Attach media track to the DOM
+        function attachTrack(track, container) {
+            // track.attach() creates an HTMLMediaElement (e.g., <video> or <audio>)
+            // and appends it to the container.
+            // Example:
+            // const mediaElement = track.attach();
+            // container.appendChild(mediaElement);
+            // log(`Attached ${track.kind} track: ${track.sid || 'local'} to container.`);
+            // For local video, clear placeholder text
+            if (container === localMediaContainer && container.querySelector('p')) {
+                container.innerHTML = ''; // Clear "Local Video" text
+            }
+             // For remote video, ensure the placeholder text is managed if it's the first remote track
+            if (container === remoteMediaContainer && remoteMediaContainer.querySelector('p') && remoteMediaContainer.childNodes.length <= 1) {
+                remoteMediaContainer.innerHTML = ''; // Clear "Remote Videos" text
+            }
+            container.appendChild(track.attach());
+        }
+
+        // Placeholder: Detach media track from the DOM
+        function detachTrack(track, container) {
+            // track.detach().forEach(element => element.remove());
+            // This removes the media element from the DOM.
+            // Example:
+            // track.detach().forEach(element => {
+            //     element.remove();
+            //     log(`Detached track element from container.`);
+            // });
+            // If no remote tracks are left, show placeholder text
+            if (container === remoteMediaContainer && container.childElementCount === 1) { // only the detached one was there
+                // remoteMediaContainer.innerHTML = '<p>Remote Videos</p>';
+            }
+            track.detach().forEach(element => element.remove());
+        }
+
+
+        joinCallButton.addEventListener('click', async () => {
+            const userIdentity = identityInput.value.trim();
+            const roomName = roomNameInput.value.trim();
+
+            if (!userIdentity || !roomName) {
+                log("Please enter both your identity and a room name.");
+                return;
+            }
+
+            log(`Joining room '${roomName}' as '${userIdentity}'...`);
+            joinCallButton.disabled = true;
+            leaveCallButton.style.display = 'inline-block';
+
+
+            try {
+                // 1. Fetch access token from our backend API
+                const response = await fetch('/api/video/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_identity: userIdentity,
+                        room_name: roomName,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Failed to get token: ${errorData.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                const token = data.token;
+                log("Token received successfully.");
+
+                // --- Placeholder for Twilio SDK Interaction ---
+                // Ensure the Twilio Video SDK is loaded before this point.
+                if (typeof Twilio === 'undefined' || typeof Twilio.Video === 'undefined') {
+                    log("Twilio SDK not loaded. Please ensure the SDK script tag is included.");
+                    joinCallButton.disabled = false;
+                    leaveCallButton.style.display = 'none';
+                    return;
+                }
+
+                // 2. Connect to the room using the token
+                //    Twilio.Video.connect(token, { name: roomName, audio: true, video: { width: 320 } })
+                //    .then(room => {
+                //        currentRoom = room;
+                //        log(`Successfully joined room: ${room.name}`);
+                //        joinCallButton.style.display = 'none';
+                //        leaveCallButton.style.display = 'inline-block';
+
+                //        // 3. Handle local participant (yourself)
+                //        //    Attach local participant's tracks to the 'local-media' div
+                //        //    room.localParticipant.tracks.forEach(publication => {
+                //        //        if (publication.track) {
+                //        //            attachTrack(publication.track, localMediaContainer);
+                //        //        }
+                //        //    });
+                //        //    You might also listen for 'trackPublished' on localParticipant if tracks are added later.
+
+                //        // 4. Handle remote participants already in the room
+                //        //    room.participants.forEach(participant => {
+                //        //        log(`Participant "${participant.identity}" is already in the room.`);
+                //        //        participant.on('trackSubscribed', track => attachTrack(track, remoteMediaContainer));
+                //        //        participant.on('trackUnsubscribed', track => detachTrack(track, remoteMediaContainer));
+                //        //    });
+
+                //        // 5. Handle new participants joining the room
+                //        //    room.on('participantConnected', participant => {
+                //        //        log(`Participant "${participant.identity}" connected.`);
+                //        //        participant.on('trackSubscribed', track => attachTrack(track, remoteMediaContainer));
+                //        //        participant.on('trackUnsubscribed', track => detachTrack(track, remoteMediaContainer));
+                //        //    });
+
+                //        // 6. Handle participants leaving the room
+                //        //    room.on('participantDisconnected', participant => {
+                //        //        log(`Participant "${participant.identity}" disconnected.`);
+                //        //        // Tracks are automatically unsubscribed and detached for that participant.
+                //        //        // You might want to remove their specific container if you created one per participant.
+                //        //    });
+
+                //        // 7. Handle being disconnected from the room (e.g., by server or network issue)
+                //        //    room.on('disconnected', (room, error) => {
+                //        //        log(`Disconnected from room: ${room.name}`);
+                //        //        if (error) {
+                //        //            log(`Error: ${error.message}`);
+                //        //        }
+                //        //        currentRoom = null;
+                //        //        localMediaContainer.innerHTML = '<p>Local Video</p>'; // Reset local video
+                //        //        remoteMediaContainer.innerHTML = '<p>Remote Videos</p>'; // Reset remote video
+                //        //        joinCallButton.disabled = false;
+                //        //        joinCallButton.style.display = 'inline-block';
+                //        //        joinCallButton.disabled = false;
+                //        //        joinCallButton.style.display = 'inline-block';
+                //        //        leaveCallButton.style.display = 'none';
+                //        //        shareScreenButton.style.display = 'none'; // Hide on disconnect
+                //        //        stopShareScreenButton.style.display = 'none'; // Hide on disconnect
+                //        //        if (screenTrack) { // If screen sharing was active
+                //        //            screenTrack.stop(); // Stop the browser's screen capture
+                //        //            screenTrack = null;
+                //        //        }
+                //        //    });
+                //    })
+                //    .catch(error => {
+                //        log(`Could not connect to Twilio: ${error.message}`);
+                //        joinCallButton.disabled = false;
+                //        leaveCallButton.style.display = 'none';
+                //        shareScreenButton.style.display = 'none';
+                //    });
+                // --- End of Placeholder for Twilio SDK Interaction ---
+                log("Placeholder: Twilio.Video.connect would be called here with the token.");
+                // Simulate joining for UI feedback in this placeholder
+                setTimeout(() => {
+                     if (!currentRoom) { // Simulate a successful join if not already in a "room"
+                        log(`Successfully joined room: ${roomName} (Simulated)`);
+                        // Simulate a room object with enough structure for screen sharing placeholders
+                        currentRoom = {
+                            name: roomName,
+                            sid: "RM_SIMULATED_SID",
+                            localParticipant: {
+                                publishTrack: function(track) {
+                                    log(`Simulated: localParticipant.publishTrack called for track: ${track.name}`);
+                                    // Simulate a publication object
+                                    return Promise.resolve({ trackSid: `MT_SIMULATED_${track.name}`});
+                                },
+                                unpublishTrack: function(track) {
+                                    log(`Simulated: localParticipant.unpublishTrack called for track: ${track.name}`);
+                                }
+                            }
+                        };
+                        joinCallButton.style.display = 'none';
+                        leaveCallButton.style.display = 'inline-block';
+                        shareScreenButton.style.display = 'inline-block'; // Show share screen button
+                        localMediaContainer.innerHTML = `<p>Simulated Local Video for ${userIdentity}</p>`;
+                        remoteMediaContainer.innerHTML = `<p>Simulated Remote Video in ${roomName}</p>`;
+                    }
+                }, 1000);
+
+
+            } catch (error) {
+                log(`Error during call setup: ${error.message}`);
+                joinCallButton.disabled = false;
+                leaveCallButton.style.display = 'none';
+                shareScreenButton.style.display = 'none';
+            }
+        });
+
+        leaveCallButton.addEventListener('click', () => {
+            log("Leaving call...");
+            // --- Placeholder for Disconnecting ---
+            // if (currentRoom) {
+            //     // If sharing screen, stop it first
+            //     if (screenTrack) {
+            //         currentRoom.localParticipant.unpublishTrack(screenTrack);
+            //         screenTrack.stop(); // Stop browser's screen capture. This will also trigger the 'stopped' event on the track.
+            //         screenTrack = null;
+            //         log("Screen sharing stopped before leaving.");
+            //         // UI for buttons will be handled by the main disconnect logic or 'disconnected' event
+            //     }
+            //     currentRoom.disconnect(); // This will trigger the 'disconnected' event handled above
+            //     // currentRoom will be set to null in the 'disconnected' event handler
+            // }
+            // --- End Placeholder ---
+            log("Placeholder: currentRoom.disconnect() would be called here.");
+            // Simulate leaving for UI feedback
+            if (currentRoom) {
+                log(`Disconnected from room: ${currentRoom.name} (Simulated)`);
+                if (screenTrack) { // If screen was being shared
+                    screenTrack.stop(); // Simulate stopping the track
+                    screenTrack = null;
+                    log("Screen sharing stopped (Simulated).");
+                }
+                currentRoom = null;
+                localMediaContainer.innerHTML = '<p>Local Video</p>';
+                remoteMediaContainer.innerHTML = '<p>Remote Videos</p>';
+                joinCallButton.disabled = false;
+                joinCallButton.style.display = 'inline-block';
+                leaveCallButton.style.display = 'none';
+                shareScreenButton.style.display = 'none';
+                stopShareScreenButton.style.display = 'none';
+            }
+        });
+
+        shareScreenButton.addEventListener('click', async () => {
+            log("Attempting to share screen...");
+
+            // 1. Check if already in a room and not already sharing
+            if (!currentRoom) {
+                log("Cannot share screen: Not connected to a room.");
+                return;
+            }
+            if (screenTrack) {
+                log("Cannot share screen: Already sharing screen.");
+                return;
+            }
+
+            // Ensure Twilio SDK is available (for real implementation)
+            // if (typeof Twilio === 'undefined' || typeof Twilio.Video === 'undefined') {
+            //     log("Twilio SDK not loaded.");
+            //     return;
+            // }
+
+            // --- Placeholder for Screen Sharing Logic ---
+            try {
+                // 2. Use navigator.mediaDevices.getDisplayMedia() to request screen access
+                // const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }); // audio: false is common for screen share
+
+                // 3. Create a LocalVideoTrack from the screen stream
+                //    The first video track from the stream is used.
+                // const newScreenTrack = new Twilio.Video.LocalVideoTrack(screenStream.getVideoTracks()[0], {
+                //    name: 'user-screen-share' // Optional name for the track, useful for identification
+                // });
+
+                // 4. Publish this track to the room
+                // currentRoom.localParticipant.publishTrack(newScreenTrack)
+                //    .then(publication => {
+                //        log(`Screen sharing started successfully. Publication SID: ${publication.trackSid}`);
+                //        screenTrack = newScreenTrack; // Store the track reference
+                //        shareScreenButton.style.display = 'none';
+                //        stopShareScreenButton.style.display = 'inline-block';
+
+                //        // Listen for when the user stops sharing via browser controls (e.g., the "Stop sharing" bar/button)
+                //        // or if the track otherwise ends.
+                //        newScreenTrack.on('stopped', () => {
+                //            log("Screen sharing stopped by user (browser control or track ended).");
+                //            // No need to call unpublishTrack here if it's already handled by 'trackended' or similar.
+                //            // However, it's good practice to ensure it's unpublished.
+                //            if (currentRoom) { // Check if still in room
+                //                 currentRoom.localParticipant.unpublishTrack(newScreenTrack);
+                //            }
+                //            screenTrack = null;
+                //            shareScreenButton.style.display = 'inline-block';
+                //            stopShareScreenButton.style.display = 'none';
+                //        });
+                //    })
+                //    .catch(publishError => {
+                //        log(`Error publishing screen share track: ${publishError.message}`);
+                //        newScreenTrack.stop(); // Stop the track if publishing failed
+                //    });
+
+                // --- SIMULATION for Placeholder ---
+                log("Simulating screen capture and publishing...");
+                await new Promise(resolve => setTimeout(resolve, 500)); // Simulate async operation
+                const simulatedScreenStreamTrack = {
+                    name: 'simulated-screen-track',
+                    kind: 'video',
+                    stop: function() { log(`Simulated ${this.name}.stop() called.`); this.onstopped && this.onstopped(); }, // Simulate stop method
+                    on: function(event, handler) { if(event === 'stopped') this.onstopped = handler; } // Simulate 'stopped' event listener
+                };
+                screenTrack = simulatedScreenStreamTrack; // Store the simulated track
+                currentRoom.localParticipant.publishTrack(screenTrack); // Call simulated publish
+                shareScreenButton.style.display = 'none';
+                stopShareScreenButton.style.display = 'inline-block';
+                log("Screen sharing started (Simulated).");
+                // Simulate user stopping share via browser control
+                // setTimeout(() => {
+                //     if (screenTrack && screenTrack.onstopped) {
+                //         log("Simulating user stopping screen share via browser control...");
+                //         screenTrack.onstopped();
+                //     }
+                // }, 15000); // after 15 seconds
+                // --- END SIMULATION ---
+
+            } catch (error) {
+                // 5. Handle potential errors (e.g., user denies permission for getDisplayMedia)
+                log(`Error starting screen share: ${error.message}`);
+                // Common errors: 'NotAllowedError' (permission denied by user), 'NotFoundError' (no screen capture sources found)
+            }
+            // --- End of Placeholder for Screen Sharing Logic ---
+        });
+
+        stopShareScreenButton.addEventListener('click', () => {
+            log("Attempting to stop screen sharing...");
+            // --- Placeholder for Stopping Screen Share ---
+            // if (currentRoom && screenTrack) {
+            //     currentRoom.localParticipant.unpublishTrack(screenTrack);
+            //     screenTrack.stop(); // This also triggers the 'stopped' event on the track if you added a listener.
+            //                         // The 'stopped' event handler should then reset UI and screenTrack variable.
+            //     log("Screen sharing unpublish initiated.");
+            //     // UI updates (button visibility, screenTrack = null) should ideally be handled
+            //     // in the 'stopped' event handler of the screenTrack to cover all cases of stopping.
+            // } else {
+            //     log("Not currently sharing screen or not in a room.");
+            // }
+            // --- End of Placeholder ---
+            log("Placeholder: Stop screen sharing logic (unpublishTrack, track.stop()) would execute here.");
+            if (currentRoom && screenTrack) {
+                screenTrack.stop(); // This will call the simulated 'onstopped' if set up, or just the stop method.
+                                    // In a real scenario, the 'stopped' event handler on the track would manage UI.
+                                    // For simulation, we'll manually reset UI here too.
+                log("Screen sharing stopped (Simulated by button).");
+                screenTrack = null;
+                shareScreenButton.style.display = 'inline-block';
+                stopShareScreenButton.style.display = 'none';
+            }
+        });
+
+    </script>
+</body>
+</html>
