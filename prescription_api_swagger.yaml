@@ -1,0 +1,537 @@
+swagger: "2.0"
+info:
+  title: "Prescription Management API"
+  description: "API for creating, retrieving, and managing medical prescriptions."
+  version: "1.0.0"
+host: "localhost:5003" # Default from prescription_api.py
+basePath: "/api"
+schemes:
+  - "http" # For development
+  # - "https" # For production
+
+consumes:
+  - "application/json"
+produces:
+  - "application/json"
+
+definitions:
+  Error:
+    type: "object"
+    description: "Standard error response structure."
+    required:
+      - status
+      - message
+    properties:
+      status:
+        type: "string"
+        enum: ["error"]
+        example: "error"
+      message:
+        type: "string"
+        description: "A human-readable description of the error."
+        example: "Missing required fields."
+
+  MedicationItemPayload:
+    type: "object"
+    description: "Details of a single medication item within a prescription request."
+    required:
+      - medication_name
+      - dosage
+      - frequency
+      - quantity
+    properties:
+      medication_name:
+        type: "string"
+        description: "Name of the medication (e.g., 'Amoxicillin 250mg caps')."
+        example: "Amoxicillin 250mg caps"
+      dosage:
+        type: "string"
+        description: "Dosage information (e.g., '1 tablet', '10ml')."
+        example: "1 tablet"
+      frequency:
+        type: "string"
+        description: "How often the medication should be taken (e.g., 'Twice daily', 'Every 4-6 hours as needed')."
+        example: "Every 8 hours"
+      quantity:
+        type: "string"
+        description: "Total quantity to dispense (e.g., '21 tablets', '100ml bottle')."
+        example: "21 tablets"
+      duration:
+        type: "string"
+        nullable: true
+        description: "Duration for which the medication should be taken (e.g., '7 days', '1 month')."
+        example: "7 days"
+      refills_available:
+        type: "integer"
+        format: "int32"
+        description: "Number of refills available."
+        default: 0
+        example: 0
+      instructions:
+        type: "string"
+        nullable: true
+        description: "Specific instructions for this medication (e.g., 'Take with food')."
+        example: "Take with food until finished."
+      is_prn:
+        type: "boolean"
+        description: "Indicates if the medication is to be taken 'as needed' (Pro Re Nata)."
+        default: false
+        example: false
+
+  PrescriptionCreatePayload:
+    type: "object"
+    description: "Payload for creating a new prescription."
+    required:
+      - patient_id
+      - provider_id
+      - issue_date
+      - medications
+    properties:
+      patient_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the patient."
+        example: 2001
+      provider_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the prescribing provider (simulates authenticated provider context)."
+        example: 1001
+      issue_date:
+        type: "string"
+        format: "date"
+        description: "Date of issue for the prescription (YYYY-MM-DD)."
+        example: "2024-07-29"
+      medications:
+        type: "array"
+        description: "List of medications for this prescription. Must contain at least one item."
+        items:
+          $ref: "#/definitions/MedicationItemPayload"
+        minItems: 1
+      appointment_id:
+        type: "integer"
+        format: "int32"
+        nullable: true
+        description: "Optional ID of the appointment related to this prescription."
+        example: 3001
+      notes_for_patient:
+        type: "string"
+        nullable: true
+        description: "Optional notes or instructions for the patient."
+        example: "Finish all medication. Follow up if no improvement in 3 days."
+      notes_for_pharmacist:
+        type: "string"
+        nullable: true
+        description: "Optional notes for the pharmacist."
+        example: "Check for penicillin allergy before dispensing."
+      pharmacy_details:
+        type: "string"
+        nullable: true
+        description: "Details of the preferred or designated pharmacy."
+        example: "Central Pharmacy, 123 Main St, Anytown"
+      status:
+        type: "string"
+        description: "Initial status of the prescription."
+        default: "active"
+        example: "active"
+    example:
+      patient_id: 2001
+      provider_id: 1001
+      issue_date: "2024-07-29"
+      medications:
+        - medication_name: "Amoxicillin 500mg"
+          dosage: "1 capsule"
+          frequency: "Every 8 hours"
+          quantity: "21 capsules"
+          duration: "7 days"
+          instructions: "Take with a full glass of water."
+        - medication_name: "Ibuprofen 200mg"
+          dosage: "1-2 tablets"
+          frequency: "As needed for pain, max 6/day"
+          quantity: "30 tablets"
+          is_prn: true
+      appointment_id: 3001
+      notes_for_patient: "Complete the course of antibiotics."
+
+  PrescriptionCreateResponse:
+    type: "object"
+    description: "Response after successfully creating a prescription."
+    properties:
+      status:
+        type: "string"
+        enum: ["success"]
+        example: "success"
+      message:
+        type: "string"
+        example: "Prescription created successfully."
+      prescription_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the newly created prescription."
+        example: 501
+
+  MedicationItemResponse:
+    type: "object"
+    description: "Details of a medication item as part of a prescription response."
+    properties:
+      prescription_medication_id:
+        type: "integer"
+        format: "int32"
+        description: "Unique ID for this medication line item on the prescription."
+      prescription_id:
+        type: "integer"
+        format: "int32"
+      medication_name:
+        type: "string"
+      dosage:
+        type: "string"
+      frequency:
+        type: "string"
+      duration:
+        type: "string"
+        nullable: true
+      quantity:
+        type: "string"
+      refills_available:
+        type: "integer"
+        format: "int32"
+      instructions:
+        type: "string"
+        nullable: true
+      is_prn:
+        type: "boolean" # API layer should convert 0/1 from DB to boolean
+    example:
+      prescription_medication_id: 1
+      prescription_id: 501
+      medication_name: "Amoxicillin 500mg"
+      dosage: "1 capsule"
+      frequency: "Every 8 hours"
+      duration: "7 days"
+      quantity: "21 capsules"
+      refills_available: 0
+      instructions: "Take with a full glass of water."
+      is_prn: false
+
+  PrescriptionDetailsResponse:
+    type: "object"
+    description: "Detailed information about a specific prescription, including all medications."
+    properties:
+      prescription_id: { type: "integer", format: "int32" }
+      appointment_id: { type: "integer", format: "int32", nullable: true }
+      patient_id: { type: "integer", format: "int32" }
+      provider_id: { type: "integer", format: "int32" }
+      patient_username: { type: "string" }
+      provider_username: { type: "string" }
+      issue_date: { type: "string", format: "date" }
+      notes_for_patient: { type: "string", nullable: true }
+      notes_for_pharmacist: { type: "string", nullable: true }
+      status: { type: "string" }
+      pharmacy_details: { type: "string", nullable: true }
+      created_at: { type: "string", format: "date-time" }
+      updated_at: { type: "string", format: "date-time" }
+      medications:
+        type: "array"
+        items:
+          $ref: "#/definitions/MedicationItemResponse"
+    example:
+      prescription_id: 501
+      appointment_id: 3001
+      patient_id: 2001
+      provider_id: 1001
+      patient_username: "api_pat_john"
+      provider_username": "api_doc_emma"
+      issue_date: "2024-07-29"
+      notes_for_patient: "Complete the course of antibiotics."
+      notes_for_pharmacist: "Check for penicillin allergy."
+      status: "active"
+      pharmacy_details: "Central Pharmacy, 123 Main St, Anytown"
+      created_at: "2024-07-29T10:00:00Z"
+      updated_at: "2024-07-29T10:00:00Z"
+      medications:
+        - $ref: "#/definitions/MedicationItemResponse/example" # Reuses example from MedicationItemResponse
+        - prescription_medication_id: 2
+          prescription_id: 501
+          medication_name: "Ibuprofen 200mg"
+          dosage: "1-2 tablets"
+          frequency: "As needed for pain, max 6/day"
+          duration: null
+          quantity: "30 tablets"
+          refills_available: 1
+          instructions: null
+          is_prn: true
+
+  PrescriptionSummaryResponse:
+    type: "object"
+    description: "Summary information about a prescription, typically used in lists."
+    properties:
+      prescription_id: { type: "integer", format: "int32" }
+      issue_date: { type: "string", format: "date" }
+      status: { type: "string" }
+      patient_username: { type: "string" }
+      provider_username: { type: "string" }
+      appointment_id: { type: "integer", format: "int32", nullable: true }
+      notes_for_patient: { type: "string", nullable: true }
+      pharmacy_details: { type: "string", nullable: true }
+    example:
+      prescription_id: 501
+      issue_date: "2024-07-29"
+      status: "active"
+      patient_username: "api_pat_john"
+      provider_username": "api_doc_emma"
+      appointment_id: 3001
+      notes_for_patient: "Complete the course of antibiotics."
+      pharmacy_details": "Central Pharmacy"
+
+  CancelPrescriptionPayload:
+    type: "object"
+    description: "Payload for cancelling a prescription."
+    required:
+      - provider_id # Simulating provider auth context
+    properties:
+      provider_id:
+        type: "integer"
+        format: "int32"
+        description: "ID of the provider cancelling the prescription (for auth simulation)."
+        example: 1001
+      reason:
+        type: "string"
+        nullable: true
+        description: "Optional reason for cancellation."
+        example: "Patient no longer requires this medication."
+
+  CancelPrescriptionResponse:
+    type: "object"
+    description: "Response after successfully cancelling a prescription."
+    properties:
+      status:
+        type: "string"
+        enum: ["success"]
+        example: "success"
+      message:
+        type: "string"
+        example: "Prescription cancelled successfully."
+      prescription_id:
+        type: "integer"
+        format: "int32"
+      new_status:
+        type: "string"
+        example: "cancelled"
+
+paths:
+  /prescriptions:
+    post:
+      summary: "Create Prescription"
+      description: "Allows a provider to create a new prescription, including one or more medications. The provider ID in the payload simulates an authenticated provider."
+      operationId: "createPrescription"
+      tags: ["Prescriptions"]
+      parameters:
+        - name: "body"
+          in: "body"
+          required: true
+          description: "Prescription and medication details."
+          schema:
+            $ref: "#/definitions/PrescriptionCreatePayload"
+      responses:
+        "201":
+          description: "Prescription created successfully."
+          schema:
+            $ref: "#/definitions/PrescriptionCreateResponse"
+        "400":
+          description: "Bad Request. Invalid input such as missing fields, malformed data (e.g., date format, medication structure), or if referenced patient/provider/appointment ID does not exist."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error. Typically a database issue or unexpected server problem."
+          schema: { $ref: "#/definitions/Error" }
+
+  /prescriptions/{prescription_id}:
+    get:
+      summary: "Get Prescription Details"
+      description: "Retrieves full details for a specific prescription, including its medication list. Requires `user_id` in query for simulated authorization (user must be patient or provider on the prescription)."
+      operationId: "getPrescriptionById"
+      tags: ["Prescriptions"]
+      parameters:
+        - name: "prescription_id"
+          in: "path"
+          type: "integer"
+          format: "int32"
+          required: true
+          description: "ID of the prescription to retrieve."
+        - name: "user_id"
+          in: "query"
+          type: "integer"
+          format: "int32"
+          required: true
+          description: "ID of the user making the request (for simulated authorization)."
+      responses:
+        "200":
+          description: "Detailed information about the prescription."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success"}
+              prescription: { $ref: "#/definitions/PrescriptionDetailsResponse" }
+        "400":
+          description: "Bad Request (e.g., `user_id` query parameter missing or not an integer)."
+          schema: { $ref: "#/definitions/Error" }
+        "403":
+          description: "Forbidden. The provided `user_id` is not authorized to view this prescription."
+          schema: { $ref: "#/definitions/Error" }
+        "404":
+          description: "Not Found. The specified `prescription_id` does not exist."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /patients/{patient_id}/prescriptions:
+    get:
+      summary: "List Patient's Prescriptions"
+      description: "Retrieves a list of prescription summaries for a specified patient. Requires `user_id` in query for simulated authorization (must match `patient_id` in path)."
+      operationId: "getPatientPrescriptions"
+      tags: ["Prescriptions"]
+      parameters:
+        - name: "patient_id"
+          in: "path"
+          type: "integer"
+          format: "int32"
+          required: true
+          description: "ID of the patient whose prescriptions are to be fetched."
+        - name: "user_id" # For simulated auth
+          in: "query"
+          type: "integer"
+          format: "int32"
+          required: true
+          description: "ID of the requesting user (must match patient_id for this endpoint)."
+        - name: "start_date_filter"
+          in: "query"
+          type: "string"
+          format: "date" # YYYY-MM-DD
+          required: false
+          description: "Filter prescriptions issued on or after this date."
+        - name: "end_date_filter"
+          in: "query"
+          type: "string"
+          format: "date" # YYYY-MM-DD
+          required: false
+          description: "Filter prescriptions issued on or before this date."
+        - name: "status_filter"
+          in: "query"
+          type: "string"
+          required: false
+          description: "Filter prescriptions by status (e.g., 'active', 'expired')."
+      responses:
+        "200":
+          description: "A list of prescription summaries for the patient."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              patient_id: { type: "integer", format: "int32" }
+              prescriptions:
+                type: "array"
+                items:
+                  $ref: "#/definitions/PrescriptionSummaryResponse"
+        "400":
+          description: "Bad Request (e.g., `user_id` query param missing, invalid date format for filters)."
+          schema: { $ref: "#/definitions/Error" }
+        "403":
+          description: "Forbidden. The provided `user_id` is not authorized."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /providers/{provider_id}/prescriptions:
+    get:
+      summary: "List Provider's Prescriptions"
+      description: "Retrieves a list of prescription summaries issued by a specified provider. Requires `user_id` in query for simulated authorization (must match `provider_id` in path)."
+      operationId: "getProviderPrescriptions"
+      tags: ["Prescriptions"]
+      parameters:
+        - name: "provider_id"
+          in: "path"
+          type: "integer"
+          format: "int32"
+          required: true
+          description: "ID of the provider whose prescriptions are to be fetched."
+        - name: "user_id" # For simulated auth
+          in: "query"
+          type: "integer"
+          format: "int32"
+          required: true
+          description: "ID of the requesting user (must match provider_id for this endpoint)."
+        - name: "start_date_filter"
+          in: "query"
+          type: "string"
+          format: "date"
+          required: false
+          description: "Filter prescriptions issued on or after this date (YYYY-MM-DD)."
+        - name: "end_date_filter"
+          in: "query"
+          type: "string"
+          format: "date"
+          required: false
+          description: "Filter prescriptions issued on or before this date (YYYY-MM-DD)."
+        - name: "status_filter"
+          in: "query"
+          type: "string"
+          required: false
+          description: "Filter prescriptions by status."
+      responses:
+        "200":
+          description: "A list of prescription summaries issued by the provider."
+          schema:
+            type: "object"
+            properties:
+              status: { type: "string", example: "success" }
+              provider_id: { type: "integer", format: "int32" }
+              prescriptions:
+                type: "array"
+                items:
+                  $ref: "#/definitions/PrescriptionSummaryResponse"
+        "400":
+          description: "Bad Request (e.g., `user_id` query param missing, invalid date format)."
+          schema: { $ref: "#/definitions/Error" }
+        "403":
+          description: "Forbidden. The provided `user_id` is not authorized."
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }
+
+  /prescriptions/{prescription_id}/cancel:
+    put:
+      summary: "Cancel a Prescription"
+      description: "Allows a provider to cancel a prescription they issued. The `provider_id` in the payload simulates an authenticated provider context."
+      operationId: "cancelPrescription"
+      tags: ["Prescriptions"]
+      parameters:
+        - name: "prescription_id"
+          in: "path"
+          type: "integer"
+          format: "int32"
+          required: true
+          description: "ID of the prescription to cancel."
+        - name: "body"
+          in: "body"
+          required: true
+          description: "Provider ID for authorization and optional reason for cancellation."
+          schema:
+            $ref: "#/definitions/CancelPrescriptionPayload"
+      responses:
+        "200":
+          description: "Prescription cancelled successfully."
+          schema:
+            $ref: "#/definitions/CancelPrescriptionResponse"
+        "400":
+          description: "Bad Request (e.g., missing `provider_id` in payload)."
+          schema: { $ref: "#/definitions/Error" }
+        "403": # Combined with 404 by API logic for this endpoint
+          description: "Forbidden/Not Found. Failed to cancel (e.g., provider not authorized, prescription not found, or already in a final state)."
+          schema: { $ref: "#/definitions/Error" }
+        "404":
+          description: "Not Found (if prescription_id does not exist)." # Covered by 403 message in current API
+          schema: { $ref: "#/definitions/Error" }
+        "500":
+          description: "Internal Server Error."
+          schema: { $ref: "#/definitions/Error" }

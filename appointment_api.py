@@ -9,7 +9,7 @@ from db_utils_appointment import (
     add_provider_availability,
     get_provider_availability,
     delete_provider_availability,
-    request_appointment as db_request_appointment, # Alias to avoid name clash
+    request_appointment as db_request_appointment, # Aliased
     get_appointment_by_id,
     get_appointments_for_user,
     update_appointment_status
@@ -20,7 +20,7 @@ app = Flask(__name__)
 DB_NAME = os.getenv('APPOINTMENT_DB_NAME', 'appointment_app.db')
 
 # --- Helper Functions ---
-def validate_datetime_string_format(datetime_str, format_str='%Y-%m-%d %H:%M:%S'):
+def validate_datetime_string_format(datetime_str: str, format_str: str ='%Y-%m-%d %H:%M:%S') -> bool:
     """
     Validates if a string matches the specified datetime format.
 
@@ -31,24 +31,28 @@ def validate_datetime_string_format(datetime_str, format_str='%Y-%m-%d %H:%M:%S'
     Returns:
         bool: True if the string matches the format, False otherwise.
     """
+    if not isinstance(datetime_str, str): # Ensure it's a string before trying strptime
+        return False
     try:
         datetime.strptime(datetime_str, format_str)
         return True
-    except (ValueError, TypeError): # Handles incorrect format or non-string input
+    except ValueError: # Handles incorrect format
         return False
 
 # --- Provider Availability Endpoints ---
 
 @app.route('/api/providers/<int:provider_id>/availability', methods=['POST'])
-def add_availability_api(provider_id):
+def add_availability_api(provider_id: int):
     """
     Provider: Add a new availability block.
 
     Allows a provider to specify a time block during which they are available.
-    An optional recurrence rule can be provided.
+    An optional recurrence rule can be provided. The provider_id in the path
+    is used to associate the availability. In a real system, this provider_id
+    should match the authenticated provider user.
 
     Path Parameters:
-        provider_id (int): The ID of the provider.
+        provider_id (int): The ID of the provider for whom availability is being added.
 
     Request Body JSON:
     {
@@ -59,17 +63,22 @@ def add_availability_api(provider_id):
 
     Responses:
     - 201 Created: Availability added successfully.
-      JSON: { "status": "success", "message": "Availability added successfully.",
-              "availability_id": int, "provider_id": int }
-    - 400 Bad Request: Missing fields, invalid datetime format, end time not after start time,
-                       or provider ID not found.
+      JSON: {
+          "status": "success",
+          "message": "Availability added successfully.",
+          "availability_id": int,
+          "provider_id": int
+      }
+    - 400 Bad Request: Missing required fields, invalid datetime format,
+                       end time not after start time (DB check), or provider ID not found (FK error).
       JSON: { "status": "error", "message": "Error description" }
-    - 500 Internal Server Error: Database error.
+    - 500 Internal Server Error: Database error or other unexpected server issues.
       JSON: { "status": "error", "message": "A database error occurred." }
     """
-    # Auth Placeholder: In a real application, verify that the authenticated user
-    # is the provider_id specified in the URL or has administrative rights.
-    # For now, we proceed assuming the provider_id is authorized.
+    # Auth Placeholder: In a production application, the `provider_id` from the path
+    # should be verified against the authenticated user's ID or administrative privileges.
+    # Example: if not (current_user.is_provider and current_user.id == provider_id or current_user.is_admin()):
+    #              return jsonify({"status": "error", "message": "Unauthorized"}), 403
 
     data = request.get_json()
     if not data:
@@ -77,7 +86,7 @@ def add_availability_api(provider_id):
 
     start_datetime_str = data.get('start_datetime')
     end_datetime_str = data.get('end_datetime')
-    recurring_rule = data.get('recurring_rule') # Optional
+    recurring_rule = data.get('recurring_rule')
 
     if not start_datetime_str or not end_datetime_str:
         return jsonify({"status": "error", "message": "Missing required fields: start_datetime, end_datetime"}), 400
@@ -91,53 +100,63 @@ def add_availability_api(provider_id):
             new_availability_id = add_provider_availability(
                 conn, provider_id, start_datetime_str, end_datetime_str, recurring_rule
             )
-            # add_provider_availability raises error on failure, so if we get here, it's likely success.
             return jsonify({
                 "status": "success",
                 "message": "Availability added successfully.",
                 "availability_id": new_availability_id,
                 "provider_id": provider_id
             }), 201
-        except ValueError as ve: # From input validation in db_utils or here
+        except ValueError as ve:
             return jsonify({"status": "error", "message": str(ve)}), 400
         except sqlite3.IntegrityError as ie:
-            # This can be due to provider_id not existing (FK constraint) or start/end time issue (CHECK constraint)
             print(f"DB IntegrityError in add_availability_api for provider {provider_id}: {ie}")
             if "FOREIGN KEY constraint failed" in str(ie):
                  return jsonify({"status": "error", "message": f"Provider with ID {provider_id} not found."}), 400
-            if "CHECK constraint failed" in str(ie): # General check constraint message
+            if "CHECK constraint failed" in str(ie):
                  return jsonify({"status": "error", "message": "End datetime must be after start datetime or other check failed."}), 400
-            return jsonify({"status": "error", "message": f"Database integrity error: {str(ie)}"}), 400 # Generic for other integrity issues
+            return jsonify({"status": "error", "message": f"Database integrity error: {str(ie)}"}), 400
         except sqlite3.Error as e:
             print(f"DB Error in add_availability_api for provider {provider_id}: {e}")
             return jsonify({"status": "error", "message": "A database error occurred while adding availability."}), 500
-        except Exception as e:
-            print(f"Unexpected error in add_availability_api for provider {provider_id}: {e}")
+        except Exception as e_gen: # Catch any other unexpected errors
+            print(f"Unexpected error in add_availability_api for provider {provider_id}: {e_gen}")
             return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
 
 
 @app.route('/api/providers/<int:provider_id>/availability', methods=['GET'])
-def get_availability_api(provider_id):
+def get_availability_api(provider_id: int):
     """
-    Provider/Patient: Get all availability blocks for a provider.
+    Get all availability blocks for a provider.
 
     Retrieves a list of availability blocks for the specified provider.
-    Can be filtered by a time window using `start_filter` and `end_filter`
-    query parameters.
+    This endpoint is typically public or accessible to authenticated users (e.g., patients)
+    looking for available slots. It can be filtered by a time window using
+    `start_filter` and `end_filter` query parameters.
 
     Path Parameters:
-        provider_id (int): The ID of the provider.
+        provider_id (int): The ID of the provider whose availability is being fetched.
 
     Query Parameters:
         start_filter (str, optional): Start of the filter window (YYYY-MM-DD HH:MM:SS).
+                                      If provided, `end_filter` is also required.
         end_filter (str, optional): End of the filter window (YYYY-MM-DD HH:MM:SS).
-                                    Both must be provided if one is used.
+                                    If provided, `start_filter` is also required.
     Responses:
     - 200 OK: Successfully retrieved availability.
-      JSON: { "status": "success", "provider_id": int, "availability": list[dict] }
-            Each dict in 'availability' contains: availability_id, provider_id,
-            start_datetime, end_datetime, recurring_rule.
-    - 400 Bad Request: Invalid filter format or missing one of start/end filter.
+      JSON: {
+          "status": "success",
+          "provider_id": int,
+          "availability": [
+              {
+                  "availability_id": int,
+                  "provider_id": int,
+                  "start_datetime": "YYYY-MM-DD HH:MM:SS",
+                  "end_datetime": "YYYY-MM-DD HH:MM:SS",
+                  "recurring_rule": "RRULE_STRING | null"
+              }, ...
+          ]
+      }
+    - 400 Bad Request: Invalid filter format or missing one of start/end filter if the other is present.
       JSON: { "status": "error", "message": "Error description" }
     - 500 Internal Server Error: Database error.
       JSON: { "status": "error", "message": "A database error occurred." }
@@ -145,6 +164,7 @@ def get_availability_api(provider_id):
     start_filter = request.args.get('start_filter')
     end_filter = request.args.get('end_filter')
 
+    # Validate filter parameters
     if (start_filter and not end_filter) or (not start_filter and end_filter):
         return jsonify({"status": "error", "message": "Both start_filter and end_filter must be provided if one is used."}), 400
     if start_filter and not validate_datetime_string_format(start_filter):
@@ -154,74 +174,74 @@ def get_availability_api(provider_id):
 
     with get_db_connection(DB_NAME) as conn:
         try:
-            # The db_utils function returns an empty list if provider_id not found or no availability,
-            # which is an acceptable response for a GET request.
+            # The db_utils function handles cases where provider_id might not exist by returning an empty list.
             availability_blocks = get_provider_availability(conn, provider_id, start_filter, end_filter)
             return jsonify({"status": "success", "provider_id": provider_id, "availability": availability_blocks}), 200
-        except ValueError as ve: # Should ideally be caught by Flask's int converter for provider_id
+        except ValueError as ve:
              return jsonify({"status": "error", "message": str(ve)}), 400
         except sqlite3.Error as e:
             print(f"DB Error in get_availability_api for provider {provider_id}: {e}")
             return jsonify({"status": "error", "message": "A database error occurred while fetching availability."}), 500
-        except Exception as e:
-            print(f"Unexpected error in get_availability_api for provider {provider_id}: {e}")
+        except Exception as e_gen:
+            print(f"Unexpected error in get_availability_api for provider {provider_id}: {e_gen}")
             return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
 
 @app.route('/api/providers/availability/<int:availability_id>', methods=['DELETE'])
-def delete_availability_api(availability_id):
+def delete_availability_api(availability_id: int):
     """
     Provider: Delete an availability slot.
 
-    Allows a provider to delete one of their existing availability blocks.
-    Requires provider_id in the payload for authorization simulation.
+    Allows an authenticated provider to delete one of their specific availability slots.
+    The `provider_id` from the authenticated context (simulated via request body here)
+    must match the provider associated with the availability slot.
 
     Path Parameters:
         availability_id (int): The ID of the availability slot to delete.
 
-    Request Body JSON:
+    Request Body JSON (for simulated auth context):
     {
-        "provider_id": int  // ID of the provider making the request (for auth simulation)
+        "provider_id": int  // ID of the provider making the request
     }
 
     Responses:
     - 200 OK: Availability slot deleted successfully.
       JSON: { "status": "success", "message": "Availability slot deleted successfully." }
-    - 400 Bad Request: Missing provider_id in payload or invalid format.
+    - 400 Bad Request: Missing `provider_id` in payload or invalid format.
       JSON: { "status": "error", "message": "Error description" }
-    - 404 Not Found: Availability slot not found or not owned by the provider.
+    - 404 Not Found: Availability slot not found or not owned by the requesting provider.
       JSON: { "status": "error", "message": "Availability slot not found or you are not authorized to delete it." }
     - 500 Internal Server Error: Database error.
       JSON: { "status": "error", "message": "A database error occurred." }
     """
     data = request.get_json()
     if not data or 'provider_id' not in data:
-        return jsonify({"status": "error", "message": "Missing provider_id in request body"}), 400
+        return jsonify({"status": "error", "message": "Missing provider_id in request body for authorization."}), 400
 
-    provider_id_from_payload = data.get('provider_id')
-    if not isinstance(provider_id_from_payload, int):
-        return jsonify({"status": "error", "message": "provider_id must be an integer"}), 400
+    provider_id_from_auth = data.get('provider_id') # In real app, from session/token
+    if not isinstance(provider_id_from_auth, int):
+        return jsonify({"status": "error", "message": "provider_id in body must be an integer."}), 400
 
-    # Auth Placeholder: In a real app, the provider_id would come from the authenticated session/token,
-    # and it would be compared against the owner of the availability_id.
+    # Auth Placeholder: Verify current_user.id == provider_id_from_auth and current_user.is_provider
 
     with get_db_connection(DB_NAME) as conn:
         try:
-            deleted = delete_provider_availability(conn, availability_id, provider_id_from_payload)
+            deleted = delete_provider_availability(conn, availability_id, provider_id_from_auth)
             if deleted:
                 return jsonify({"status": "success", "message": "Availability slot deleted successfully."}), 200
             else:
-                # This covers both "not found" and "not owned by this provider"
+                # This covers "not found" for this specific availability_id under this provider,
+                # or if availability_id exists but belongs to another provider.
                 return jsonify({"status": "error", "message": "Availability slot not found or you are not authorized to delete it."}), 404
         except ValueError as ve:
             return jsonify({"status": "error", "message": str(ve)}), 400
         except sqlite3.Error as e:
-            print(f"DB Error in delete_availability_api for availability {availability_id}: {e}")
+            print(f"DB Error in delete_availability_api for availability ID {availability_id}: {e}")
             return jsonify({"status": "error", "message": "A database error occurred."}), 500
-        except Exception as e:
-            print(f"Unexpected error in delete_availability_api for availability {availability_id}: {e}")
+        except Exception as e_gen:
+            print(f"Unexpected error in delete_availability_api for availability ID {availability_id}: {e_gen}")
             return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
 
-# --- Appointment Request Endpoint ---
+# --- Appointment Endpoints ---
 
 @app.route('/api/appointments/request', methods=['POST'])
 def request_appointment_api():
@@ -229,8 +249,8 @@ def request_appointment_api():
     Patient: Request a new appointment with a provider.
 
     The appointment is created with a status of 'pending_provider_confirmation'.
-    Further actions (e.g., provider confirming, checking availability conflicts)
-    are handled by other endpoints or backend logic.
+    Validation of times against provider availability is not performed at this stage
+    but would be a critical addition in a full system.
 
     Request Body JSON:
     {
@@ -245,8 +265,8 @@ def request_appointment_api():
     Responses:
     - 201 Created: Appointment requested successfully.
       JSON: { "status": "success", "message": "...", "appointment_id": int }
-    - 400 Bad Request: Missing fields, invalid data types, invalid time range,
-                       or patient/provider ID not found.
+    - 400 Bad Request: Missing fields, invalid data types, invalid time range (DB check),
+                       or patient/provider ID not found (FK constraint).
       JSON: { "status": "error", "message": "Error description" }
     - 500 Internal Server Error: Database error.
       JSON: { "status": "error", "message": "A database error occurred." }
@@ -259,14 +279,15 @@ def request_appointment_api():
     provider_id = data.get('provider_id')
     start_time = data.get('appointment_start_time')
     end_time = data.get('appointment_end_time')
-    reason_for_visit = data.get('reason_for_visit') # Optional
-    notes_by_patient = data.get('notes_by_patient') # Optional
+    reason_for_visit = data.get('reason_for_visit')
+    notes_by_patient = data.get('notes_by_patient')
 
     # Auth Placeholder: In a real app, patient_id should ideally match the
-    # authenticated user making the request. For now, it's taken from payload.
+    # authenticated user ID making the request.
+    # if not current_user.is_patient or current_user.id != patient_id: return jsonify({"status": "error", "message": "Unauthorized"}), 403
 
     required_fields = ['patient_id', 'provider_id', 'appointment_start_time', 'appointment_end_time']
-    missing = [field for field in required_fields if data.get(field) is None] # Check for None explicitly for int
+    missing = [field for field in required_fields if data.get(field) is None]
     if missing:
         return jsonify({"status": "error", "message": f"Missing required fields: {', '.join(missing)}"}), 400
 
@@ -275,9 +296,11 @@ def request_appointment_api():
     if not validate_datetime_string_format(start_time) or not validate_datetime_string_format(end_time):
         return jsonify({"status": "error", "message": "Invalid datetime format for appointment times. Use YYYY-MM-DD HH:MM:SS"}), 400
 
-    # Business Logic Placeholder: A real system would check for provider availability,
-    # existing appointment conflicts, and other business rules here BEFORE attempting to save.
-    # For this example, we proceed directly to the database request.
+    # Business Logic Placeholder: A crucial step in a real system would be to check
+    # if the requested slot [start_time, end_time] is actually available for the provider
+    # by checking against `provider_availability` and existing `appointments`.
+    # This logic is complex and would typically reside in a service layer or within this API.
+    # For now, we proceed directly to attempting to book.
 
     with get_db_connection(DB_NAME) as conn:
         try:
@@ -290,39 +313,38 @@ def request_appointment_api():
                 "message": "Appointment requested successfully. Awaiting provider confirmation.",
                 "appointment_id": new_appointment_id
             }), 201
-        except ValueError as ve: # From db_utils validation
+        except ValueError as ve:
             return jsonify({"status": "error", "message": str(ve)}), 400
         except sqlite3.IntegrityError as ie:
             print(f"DB IntegrityError in request_appointment_api: {ie}")
             if "FOREIGN KEY constraint failed" in str(ie):
                  return jsonify({"status": "error", "message": "Invalid patient_id or provider_id (user does not exist)."}), 400
-            if "CHECK constraint failed" in str(ie): # General check for time or other constraints
+            if "CHECK constraint failed" in str(ie):
                  return jsonify({"status": "error", "message": "Appointment time range is invalid or other check failed."}), 400
             return jsonify({"status": "error", "message": f"Database integrity error: {str(ie)}"}), 400
         except sqlite3.Error as e:
             print(f"DB Error in request_appointment_api: {e}")
             return jsonify({"status": "error", "message": "A database error occurred while requesting the appointment."}), 500
-        except Exception as e:
-            print(f"Unexpected error in request_appointment_api: {e}")
+        except Exception as e_gen:
+            print(f"Unexpected error in request_appointment_api: {e_gen}")
             return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
 
-# --- Appointment Retrieval and Management Endpoints ---
 
 @app.route('/api/providers/<int:provider_id>/appointments', methods=['GET'])
-def get_provider_appointments_api(provider_id):
+def get_provider_appointments_api(provider_id: int):
     """
     Provider: Get their appointments, with optional filters.
 
     Retrieves a list of appointments associated with the specified provider_id.
-    Allows filtering by status and a date range for `appointment_start_time`.
+    Allows filtering by status and a date range (YYYY-MM-DD) for `appointment_start_time`.
 
     Path Parameters:
-        provider_id (int): The ID of the provider.
+        provider_id (int): The ID of the provider. (Auth: should match logged-in provider)
 
     Query Parameters:
-        status (str, optional): Filter appointments by this status.
-        date_from (str, optional): Start date for filtering (YYYY-MM-DD).
-        date_to (str, optional): End date for filtering (YYYY-MM-DD).
+        status (str, optional): Filter appointments by this status (e.g., 'confirmed', 'pending_provider_confirmation').
+        date_from (str, optional): Start date for filtering appointments (YYYY-MM-DD).
+        date_to (str, optional): End date for filtering appointments (YYYY-MM-DD).
 
     Responses:
     - 200 OK: Successfully retrieved appointments.
@@ -330,15 +352,18 @@ def get_provider_appointments_api(provider_id):
             Each dict in 'appointments' contains full appointment details including usernames.
     - 400 Bad Request: Invalid date format for filters.
       JSON: { "status": "error", "message": "Error description" }
+    - 403 Forbidden: If the authenticated user is not the specified provider or an admin. (Conceptual)
     - 500 Internal Server Error: Database error.
       JSON: { "status": "error", "message": "A database error occurred." }
     """
-    # Auth Placeholder: In a real app, verify the authenticated user IS this provider_id
-    # or has rights to view these appointments.
+    # Auth Placeholder: Verify authenticated user IS this provider_id or has admin rights.
+    # user_making_request = get_current_user_from_session_or_token()
+    # if not ((user_making_request.id == provider_id and user_making_request.role == 'provider') or user_making_request.is_admin):
+    #    return jsonify({"status": "error", "message": "Forbidden to access this provider's appointments."}), 403
 
     status_filter = request.args.get('status')
-    date_from_filter = request.args.get('date_from') # Expected format: YYYY-MM-DD
-    date_to_filter = request.args.get('date_to')     # Expected format: YYYY-MM-DD
+    date_from_filter = request.args.get('date_from')
+    date_to_filter = request.args.get('date_to')
 
     if date_from_filter and not validate_datetime_string_format(date_from_filter, '%Y-%m-%d'):
         return jsonify({"status": "error", "message": "Invalid date_from format. Use YYYY-MM-DD"}), 400
@@ -352,26 +377,26 @@ def get_provider_appointments_api(provider_id):
                 status_filter=status_filter, start_date_filter=date_from_filter, end_date_filter=date_to_filter
             )
             return jsonify({"status": "success", "provider_id": provider_id, "appointments": appointments_list}), 200
-        except ValueError as ve: # From get_appointments_for_user if role is invalid (should not happen here)
+        except ValueError as ve:
             return jsonify({"status": "error", "message": str(ve)}), 400
         except sqlite3.Error as e:
             print(f"DB Error in get_provider_appointments_api for provider {provider_id}: {e}")
             return jsonify({"status": "error", "message": "A database error occurred while fetching provider appointments."}), 500
-        except Exception as e:
-            print(f"Unexpected error in get_provider_appointments_api for provider {provider_id}: {e}")
+        except Exception as e_gen:
+            print(f"Unexpected error in get_provider_appointments_api for provider {provider_id}: {e_gen}")
             return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
 
 
 @app.route('/api/patients/<int:patient_id>/appointments', methods=['GET'])
-def get_patient_appointments_api(patient_id):
+def get_patient_appointments_api(patient_id: int):
     """
     Patient: Get their appointments, with optional filters.
 
     Retrieves a list of appointments associated with the specified patient_id.
-    Allows filtering by status and a date range for `appointment_start_time`.
+    Allows filtering by status and a date range (YYYY-MM-DD) for `appointment_start_time`.
 
     Path Parameters:
-        patient_id (int): The ID of the patient.
+        patient_id (int): The ID of the patient. (Auth: should match logged-in patient, or provider with access)
 
     Query Parameters:
         status (str, optional): Filter appointments by this status.
@@ -383,11 +408,15 @@ def get_patient_appointments_api(patient_id):
       JSON: { "status": "success", "patient_id": int, "appointments": list[dict] }
     - 400 Bad Request: Invalid date format for filters.
       JSON: { "status": "error", "message": "Error description" }
+    - 403 Forbidden: If trying to access another patient's appointments without authorization.
     - 500 Internal Server Error: Database error.
-      JSON: { "status": "error", "message": "A database error occurred." }
     """
-    # Auth Placeholder: In a real app, verify the authenticated user IS this patient_id
-    # or has delegated access (e.g., a provider viewing their patient's appointments).
+    # Auth Placeholder: Verify authenticated user IS this patient_id or an authorized provider for this patient.
+    # user_making_request = get_current_user_from_session_or_token()
+    # if not ( (user_making_request.id == patient_id and user_making_request.role == 'patient') or
+    #          (user_making_request.role == 'provider' and user_is_linked_to_patient(user_making_request.id, patient_id)) or
+    #          user_making_request.is_admin ):
+    #    return jsonify({"status": "error", "message": "Forbidden to access this patient's appointments."}), 403
 
     status_filter = request.args.get('status')
     date_from_filter = request.args.get('date_from')
@@ -405,44 +434,44 @@ def get_patient_appointments_api(patient_id):
                 status_filter=status_filter, start_date_filter=date_from_filter, end_date_filter=date_to_filter
             )
             return jsonify({"status": "success", "patient_id": patient_id, "appointments": appointments_list}), 200
-        except ValueError as ve: # Should not happen here due to fixed role
+        except ValueError as ve:
             return jsonify({"status": "error", "message": str(ve)}), 400
         except sqlite3.Error as e:
             print(f"DB Error in get_patient_appointments_api for patient {patient_id}: {e}")
             return jsonify({"status": "error", "message": "A database error occurred while fetching patient appointments."}), 500
-        except Exception as e:
-            print(f"Unexpected error in get_patient_appointments_api for patient {patient_id}: {e}")
+        except Exception as e_gen:
+            print(f"Unexpected error in get_patient_appointments_api for patient {patient_id}: {e_gen}")
             return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
 
 
 @app.route('/api/appointments/<int:appointment_id>', methods=['GET'])
-def get_appointment_details_api(appointment_id):
+def get_appointment_details_api(appointment_id: int):
     """
     User (Patient/Provider): Get specific details for an appointment.
 
-    Retrieves full details for a single appointment.
+    Retrieves full details for a single appointment, including patient and provider usernames.
     Requires `user_id` query parameter for simulated authorization to ensure
     the requester is a participant in the appointment.
 
     Path Parameters:
         appointment_id (int): The ID of the appointment.
 
-    Query Parameters:
-        user_id (int): ID of the user making the request (for authorization simulation).
+    Query Parameters (for simulated auth):
+        user_id (int): ID of the user making the request.
 
     Responses:
     - 200 OK: Successfully retrieved appointment details.
       JSON: { "status": "success", "appointment": dict } (full appointment details)
     - 400 Bad Request: Missing or invalid `user_id` query parameter.
       JSON: { "status": "error", "message": "Error description" }
-    - 403 Forbidden: User not authorized to view this appointment.
+    - 403 Forbidden: User (from `user_id` query param) not authorized to view this appointment.
       JSON: { "status": "error", "message": "User not authorized to view this appointment." }
-    - 404 Not Found: Appointment not found.
+    - 404 Not Found: Appointment with the given `appointment_id` not found.
       JSON: { "status": "error", "message": "Appointment not found." }
     - 500 Internal Server Error: Database error.
       JSON: { "status": "error", "message": "A database error occurred." }
     """
-    user_id_str = request.args.get('user_id')
+    user_id_str = request.args.get('user_id') # Simulating auth context via query parameter
     if not user_id_str:
         return jsonify({"status": "error", "message": "user_id query parameter is required for authorization."}), 400
     try:
@@ -456,31 +485,31 @@ def get_appointment_details_api(appointment_id):
             if not appointment_details:
                 return jsonify({"status": "error", "message": "Appointment not found."}), 404
 
-            # Auth Check: Verify requesting_user_id is part of this appointment
-            # In a real app, this user_id would come from an authenticated session/token.
+            # Auth Check: Verify requesting_user_id is part of this appointment.
+            # In a real app, this would be based on the authenticated user's session/token.
             if not (appointment_details['patient_id'] == requesting_user_id or \
                     appointment_details['provider_id'] == requesting_user_id):
-                # Log this attempt for security auditing if necessary
                 print(f"Authorization failed: User {requesting_user_id} attempted to access appointment {appointment_id}.")
                 return jsonify({"status": "error", "message": "User not authorized to view this appointment."}), 403
 
             return jsonify({"status": "success", "appointment": appointment_details}), 200
-        except ValueError as ve: # Should not happen due to Flask's int converter for path param
+        except ValueError as ve:
             return jsonify({"status": "error", "message": str(ve)}), 400
         except sqlite3.Error as e:
             print(f"DB Error in get_appointment_details_api for appointment {appointment_id}: {e}")
             return jsonify({"status": "error", "message": "A database error occurred while fetching appointment details."}), 500
-        except Exception as e:
-            print(f"Unexpected error in get_appointment_details_api for appointment {appointment_id}: {e}")
+        except Exception as e_gen:
+            print(f"Unexpected error in get_appointment_details_api for appointment {appointment_id}: {e_gen}")
             return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
 
 @app.route('/api/appointments/<int:appointment_id>/confirm', methods=['PUT'])
-def confirm_appointment_api(appointment_id):
+def confirm_appointment_api(appointment_id: int):
     """
     Provider: Confirm a pending appointment.
 
-    Updates the appointment's status to 'confirmed' and generates a video room name.
-    Requires `provider_id` in the payload for simulated authorization.
+    Updates the appointment's status to 'confirmed' and typically generates a video room name.
+    Requires `provider_id` in the payload for simulated authorization, representing
+    the ID of the authenticated provider performing the action.
 
     Path Parameters:
         appointment_id (int): The ID of the appointment to confirm.
@@ -492,11 +521,13 @@ def confirm_appointment_api(appointment_id):
 
     Responses:
     - 200 OK: Appointment confirmed successfully.
-      JSON: { "status": "success", "appointment": dict } (updated appointment details)
-    - 400 Bad Request: Missing `provider_id` or invalid format.
+      JSON: { "status": "success", "appointment": dict } (updated appointment details, including video_room_name)
+    - 400 Bad Request: Missing `provider_id` in payload or invalid format.
       JSON: { "status": "error", "message": "Error description" }
-    - 403 Forbidden/404 Not Found: Failed to confirm (e.g., not authorized, appointment not found,
-                                   or not in a confirmable state).
+    - 403 Forbidden: Authenticated provider is not authorized to confirm this appointment,
+                     or appointment is not in a confirmable state.
+      JSON: { "status": "error", "message": "Error description" }
+    - 404 Not Found: If the appointment to be confirmed does not exist.
       JSON: { "status": "error", "message": "Error description" }
     - 500 Internal Server Error: Database error.
       JSON: { "status": "error", "message": "A database error occurred." }
@@ -509,55 +540,49 @@ def confirm_appointment_api(appointment_id):
     if not isinstance(provider_id_from_payload, int):
         return jsonify({"status": "error", "message": "provider_id must be an integer"}), 400
 
-    # Auth Placeholder: In a real app, the actual provider_id would come from an authenticated session/token.
-    # The one from payload is used here to simulate which provider is making the call for the DB util's auth check.
+    # Auth Placeholder: In a real application, the actual provider_id would be derived
+    # from the authenticated user's session or token.
 
     with get_db_connection(DB_NAME) as conn:
         try:
-            # Attempt to update the status to 'confirmed'
             success = update_appointment_status(
                 conn,
                 appointment_id=appointment_id,
                 new_status='confirmed',
-                current_user_id=provider_id_from_payload, # This is the acting user
+                current_user_id=provider_id_from_payload,
                 user_role='provider'
-                # 'notes' could be added here if the endpoint supported it, e.g., data.get('notes')
+                # Optional: notes=data.get('notes_by_provider') could be added
             )
             if success:
-                # Fetch the updated appointment details to include in the response
                 updated_appointment = get_appointment_by_id(conn, appointment_id)
                 if updated_appointment:
-                    # Notification Placeholder: Notify patient about confirmation.
+                    # Notification Placeholder: Consider sending a notification to the patient.
                     print(f"Conceptual: Notify patient for confirmed appointment {appointment_id}")
                     return jsonify({"status": "success", "appointment": updated_appointment}), 200
                 else:
-                    # This case is unlikely if update_appointment_status succeeded, but good to handle.
-                    print(f"Error: Appointment {appointment_id} status updated, but failed to retrieve updated details.")
-                    return jsonify({"status": "error", "message": "Appointment status updated but failed to retrieve details."}), 500
+                    print(f"Error: Appointment {appointment_id} status updated to confirmed, but failed to retrieve updated details.")
+                    return jsonify({"status": "error", "message": "Appointment confirmed but failed to retrieve updated details."}), 500
             else:
-                # update_appointment_status returns False if:
-                # 1. Appointment not found.
-                # 2. Authorization failed (e.g., provider_id_from_payload doesn't match appointment's provider).
-                # 3. Status transition is not allowed by its internal logic (though not explicitly checked here).
-                # For the API, it's often better to not reveal if an ID exists if unauthorized.
-                # A 403 or 404 response is appropriate. The db_util prints more specific logs.
+                # update_appointment_status returns False for "not found" or "auth failed".
+                # API returns a generic message; db_util logs specifics.
                 return jsonify({"status": "error", "message": "Failed to confirm appointment. It may not exist, not be in a confirmable state, or you are not authorized."}), 403
-        except ValueError as ve: # From input validation in this function or db_utils
+        except ValueError as ve:
             return jsonify({"status": "error", "message": str(ve)}), 400
-        except sqlite3.Error as e: # General database error
+        except sqlite3.Error as e:
             print(f"DB Error in confirm_appointment_api for appointment {appointment_id}: {e}")
             return jsonify({"status": "error", "message": "A database error occurred while confirming the appointment."}), 500
-        except Exception as e:
-            print(f"Unexpected error in confirm_appointment_api for appointment {appointment_id}: {e}")
+        except Exception as e_gen:
+            print(f"Unexpected error in confirm_appointment_api for appointment {appointment_id}: {e_gen}")
             return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
 
 @app.route('/api/appointments/<int:appointment_id>/cancel', methods=['PUT'])
-def cancel_appointment_api(appointment_id):
+def cancel_appointment_api(appointment_id: int):
     """
     User (Patient/Provider): Cancel an appointment.
 
-    Allows a patient or provider to cancel an appointment.
-    The role of the canceller determines the new status and where notes are stored.
+    Allows an authenticated patient or provider to cancel an appointment.
+    The role of the canceller determines the new status (e.g., 'cancelled_by_patient')
+    and where any provided notes (reason for cancellation) are stored.
 
     Path Parameters:
         appointment_id (int): The ID of the appointment to cancel.
@@ -573,10 +598,10 @@ def cancel_appointment_api(appointment_id):
     - 200 OK: Appointment cancelled successfully.
       JSON: { "status": "success", "message": "Appointment cancelled successfully.",
               "appointment_id": int, "new_appointment_status": str }
-    - 400 Bad Request: Missing fields in payload or invalid role.
+    - 400 Bad Request: Missing fields in payload or invalid role/user_id.
       JSON: { "status": "error", "message": "Error description" }
-    - 403 Forbidden/404 Not Found: Failed to cancel (e.g., not authorized, appointment not found,
-                                   or not in a cancellable state).
+    - 403 Forbidden/404 Not Found: Failed to cancel (e.g., user not authorized, appointment not found,
+                                   or appointment not in a cancellable state).
       JSON: { "status": "error", "message": "Error description" }
     - 500 Internal Server Error: Database error.
       JSON: { "status": "error", "message": "A database error occurred." }
@@ -587,10 +612,9 @@ def cancel_appointment_api(appointment_id):
 
     user_id_from_payload = data.get('user_id')
     role_from_payload = data.get('cancelled_by_role')
-    reason_from_payload = data.get('reason') # Optional
+    reason_from_payload = data.get('reason')
 
-    # Validate required payload fields for this action
-    if user_id_from_payload is None or not role_from_payload: # Check for None for int, not empty for role
+    if user_id_from_payload is None or not role_from_payload:
         return jsonify({"status": "error", "message": "Missing user_id or cancelled_by_role in request body"}), 400
     if not isinstance(user_id_from_payload, int):
         return jsonify({"status": "error", "message": "user_id must be an integer"}), 400
@@ -605,13 +629,12 @@ def cancel_appointment_api(appointment_id):
                 conn,
                 appointment_id=appointment_id,
                 new_status=new_status,
-                current_user_id=user_id_from_payload, # User performing the action
-                user_role=role_from_payload,          # Role they are acting in
+                current_user_id=user_id_from_payload,
+                user_role=role_from_payload,
                 notes=reason_from_payload
             )
             if success:
                 # Notification Placeholder: Notify the other party about the cancellation.
-                # E.g., if patient cancelled, notify provider, and vice-versa.
                 print(f"Conceptual: Notify other party for cancelled appointment {appointment_id}")
                 return jsonify({
                     "status": "success",
@@ -620,41 +643,46 @@ def cancel_appointment_api(appointment_id):
                     "new_appointment_status": new_status
                 }), 200
             else:
-                # Similar to /confirm, db_util's update_appointment_status returns False
-                # for "not found" or "auth failed".
-                return jsonify({"status": "error", "message": "Failed to cancel appointment. It may not exist, already be in a final state, or you are not authorized."}), 403 # Or 404
+                return jsonify({"status": "error", "message": "Failed to cancel appointment. It may not exist, already be in a final state, or you are not authorized."}), 403
         except ValueError as ve:
             return jsonify({"status": "error", "message": str(ve)}), 400
         except sqlite3.Error as e:
             print(f"DB Error in cancel_appointment_api for appointment {appointment_id}: {e}")
             return jsonify({"status": "error", "message": "A database error occurred while cancelling the appointment."}), 500
-        except Exception as e:
-            print(f"Unexpected error in cancel_appointment_api for appointment {appointment_id}: {e}")
+        except Exception as e_gen:
+            print(f"Unexpected error in cancel_appointment_api for appointment {appointment_id}: {e_gen}")
             return jsonify({"status": "error", "message": "An unexpected server error occurred."}), 500
 
 if __name__ == '__main__':
-    # Initialize the database schema when running the app directly.
-    # This is suitable for development and testing.
-    # In a production environment, database schema migrations should be handled
-    # by a dedicated migration tool (e.g., Alembic for SQLAlchemy, or custom scripts).
-    print(f"Attempting to initialize database '{DB_NAME}' for appointments...")
+    # This section is for development and direct execution of the Flask app.
+    # In a production environment, a WSGI server like Gunicorn or uWSGI should be used.
+    print(f"Attempting to initialize database '{DB_NAME}' for appointments API...")
     try:
+        # Ensure the database and schema are set up when running directly.
         with get_db_connection(DB_NAME) as conn:
-            initialize_appointment_schema(conn)
-            # Optionally, add a couple of test users like in db_utils_appointment for dev
+            initialize_appointment_schema(conn) # This also creates the users table.
+            # Optionally, seed some basic users if the users table is empty,
+            # to make the API immediately testable for development.
+            # The db_utils_appointment.py __main__ block has more extensive seeding if run directly.
             try:
-                cursor = conn.cursor() # Use the connection from the 'with' block
-                # Using INSERT OR IGNORE to prevent errors if users already exist
-                cursor.execute("INSERT OR IGNORE INTO users (username, email, phone) VALUES (?,?,?)", ('doc_alice','alice@example.com','111-222-3333'))
-                cursor.execute("INSERT OR IGNORE INTO users (username, email, phone) VALUES (?,?,?)", ('patient_bob','bob@example.com','444-555-6666'))
-                cursor.execute("INSERT OR IGNORE INTO users (username, email, phone) VALUES (?,?,?)", ('patient_claire','claire@example.com','777-888-9999'))
+                cursor = conn.cursor()
+                # Using INSERT OR IGNORE to prevent errors if users already exist from other setup scripts.
+                # These specific user IDs might be useful for manual API testing.
+                cursor.execute("INSERT OR IGNORE INTO users (user_id, username, email, phone) VALUES (?, ?, ?, ?)",
+                             (1, 'api_doc_alice', 'alice.api@example.com', '111-222-0000'))
+                cursor.execute("INSERT OR IGNORE INTO users (user_id, username, email, phone) VALUES (?, ?, ?, ?)",
+                             (101, 'api_pat_bob', 'bob.api@example.com', '444-555-0000'))
+                cursor.execute("INSERT OR IGNORE INTO users (user_id, username, email, phone) VALUES (?, ?, ?, ?)",
+                             (102, 'api_pat_claire', 'claire.api@example.com', '777-888-0000'))
                 conn.commit()
-                print("Default users (doc_alice, patient_bob, patient_claire) ensured for development.")
-            except sqlite3.Error as e_user: # Catch error specifically for user insert
-                print(f"Error ensuring default users: {e_user}")
-    except sqlite3.Error as e_main:
-        print(f"FATAL: Could not initialize appointment database: {e_main}")
-    except Exception as e_gen:
-        print(f"An unexpected error occurred during initial setup: {e_gen}")
+                print("Default users (api_doc_alice, api_pat_bob, api_pat_claire) ensured for development.")
+            except sqlite3.Error as e_user_seed:
+                # This might happen if table structure changed or other integrity issues.
+                print(f"Notice: Error during optional user seeding: {e_user_seed} (Users might already exist or schema issue).")
+    except sqlite3.Error as e_main_setup:
+        print(f"FATAL: Could not initialize appointment database '{DB_NAME}': {e_main_setup}")
+        # Depending on severity, might want to sys.exit(1) here if DB is critical for app start
+    except Exception as e_gen_setup:
+        print(f"An unexpected error occurred during initial API setup: {e_gen_setup}")
 
     app.run(debug=True, port=5002)
