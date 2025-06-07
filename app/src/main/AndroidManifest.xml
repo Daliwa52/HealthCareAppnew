@@ -50,21 +50,24 @@
         <activity
             android:name=".PatientDashboardActivity"
             android:exported="false"
-            android:theme="@style/Theme.HealthCareApp" />
+            android:theme="@style/Theme.HealthCareApp"
+            tools:node="replace" />
 
         <!-- Patient Profile Activity -->
         <activity
             android:name=".PatientProfileActivity"
             android:label="@string/title_activity_patient_profile"
             android:exported="false"
-            android:theme="@style/Theme.HealthCareApp" />
+            android:theme="@style/Theme.HealthCareApp"
+            tools:node="replace" />
 
         <!-- Professional Profile Activity -->
         <activity
             android:name=".ProfessionalProfileActivity"
             android:label="@string/title_activity_professional_profile"
             android:exported="false"
-            android:theme="@style/Theme.HealthCareApp" />
+            android:theme="@style/Theme.HealthCareApp"
+            tools:node="replace" />
 
         <!-- Select Professional Activity -->
         <activity
@@ -85,21 +88,24 @@
             android:name=".RequestAppointmentActivity"
             android:label="@string/title_activity_request_appointment"
             android:exported="false"
-            android:theme="@style/Theme.HealthCareApp" />
+            android:theme="@style/Theme.HealthCareApp"
+            tools:node="replace" />
 
         <!-- Provider Appointments Activity -->
         <activity
             android:name=".ProviderAppointmentsActivity"
             android:label="@string/title_activity_provider_appointments"
             android:exported="false"
-            android:theme="@style/Theme.HealthCareApp" />
+            android:theme="@style/Theme.HealthCareApp"
+            tools:node="replace" />
 
         <!-- Patient Appointments Activity -->
         <activity
             android:name=".PatientAppointmentsActivity"
             android:label="@string/title_activity_patient_appointments"
             android:exported="false"
-            android:theme="@style/Theme.HealthCareApp" />
+            android:theme="@style/Theme.HealthCareApp"
+            tools:node="replace" />
 
         <!-- Main Activity -->
         <activity
