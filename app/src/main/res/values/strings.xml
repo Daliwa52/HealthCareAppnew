@@ -76,6 +76,7 @@
     <string name="error_fetch_user_details">Failed to fetch user details. Logging out.</string>
     <string name="error_role_not_found">User role not found. Logging out.</string>
     <string name="error_unexpected_role">Unexpected user role encountered.</string>
+    <string name="error_not_logged_in">User not logged in. Please log in to continue.</string>
     
     <!-- Consultation Types -->
     <string name="consultation_in_person">In Person</string>
