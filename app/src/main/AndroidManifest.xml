@@ -61,6 +61,34 @@
             android:name=".SearchActivity"
             android:exported="false"
             android:theme="@style/Theme.HealthCareApp" />
+        <activity
+            android:name=".PatientAppointmentsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+        <activity
+            android:name=".PatientDashboardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+        <activity
+            android:name=".PatientProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+        <activity
+            android:name=".ProfessionalProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+        <activity
+            android:name=".ProviderAppointmentsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+        <activity
+            android:name=".ProviderDashboardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
+        <activity
+            android:name=".RequestAppointmentActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HealthCareApp" />
 
         <!-- Firebase Cloud Messaging -->
         <service
